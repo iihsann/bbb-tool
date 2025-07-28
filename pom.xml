@@ -8,8 +8,8 @@
     <parent>
         <groupId>org.sakaiproject</groupId>
         <artifactId>master</artifactId>
-        <version>24-SNAPSHOT</version>
-        <relativePath>../master/pom.xml</relativePath>
+        <version>25.0</version>
+        <relativePath>../sakai/master/pom.xml</relativePath>
     </parent>
 
     <name>BigBlueButton</name>
