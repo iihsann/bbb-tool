@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.osedu.org/licenses/ECL-2.0
+ *             http://www.osedu.org/licenses/ECL-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -150,15 +150,8 @@
         // Consolidate date + time fields.
         let startMillis = 0;
         let endMillis = 0;
-        
-        // --- SAFE DATE PARSING START (Fix for Turkish Locale/Input) ---
         if ($('#startDate1').prop('checked')) {
-            // Fix: Get raw string, convert dd.mm.yyyy or dd-mm-yyyy to yyyy/mm/dd format manually.
-            var raw = $('#startDate2').val();
-            // Regex: Group1(Day)[.-]Group2(Month)[.-]Group3(Year) -> Year/Month/Day
-            var safe = raw.replace(/^(\d{1,2})[.-](\d{1,2})[.-](\d{4})/, '$3/$2/$1');
-            const date = new Date(safe);
-            
+            const date = $('#startDate2').datepicker('getDate');
             startMillis = date.getTime();
             $('#startDate').val(startMillis);
         } else {
@@ -166,20 +159,14 @@
             $('#startDate').val(null);
             $('#addToCalendar').removeAttr('checked');
         }
-
         if ($('#endDate1').attr('checked')) {
-            // Fix: Get raw string, convert dd.mm.yyyy or dd-mm-yyyy to yyyy/mm/dd format manually.
-            var raw = $('#endDate2').val();
-            var safe = raw.replace(/^(\d{1,2})[.-](\d{1,2})[.-](\d{4})/, '$3/$2/$1');
-            const date = new Date(safe);
-
+            const date = $('#endDate2').datepicker('getDate');
             endMillis = date.getTime();
             $('#endDate').val(endMillis);
         } else {
             $('#endDate').removeAttr('name');
             $('#endDate').val(null);
         }
-        // --- SAFE DATE PARSING END ---
 
         // Validation.
         meetings.utils.hideMessage();
@@ -943,7 +930,7 @@
                 var htmlRecordings = "";
                 var groupID = groupId ? "', 'groupId':'" + groupId : "";
                 if (recordings.length > 0)
-                    htmlRecordings = '(<a href="javascript:;\" onclick="return meetings.switchState(\'recordings_meeting\',{\'meetingId\':\'' + meetingId + groupID + '\'})" title="">' + bbb_meetinginfo_recordings(unescape(recordings.length)) + '</a>)&nbsp;&nbsp;';
+                    htmlRecordings = '(<a href="javascript:;" onclick="return meetings.switchState(\'recordings_meeting\',{\'meetingId\':\'' + meetingId + groupID + '\'})" title="">' + bbb_meetinginfo_recordings(unescape(recordings.length)) + '</a>)&nbsp;&nbsp;';
                 else
                     htmlRecordings = "(" + bbb_meetinginfo_recordings(unescape(recordings.length)) + ")";
 
@@ -1364,24 +1351,32 @@ Date.prototype.dst = function () {
     return this.getTimezoneOffset() < this.stdTimezoneOffset();
 };
 
-// --- FİNAL DÜZELTME: Görüntüleme için Yerel Saat Kullanımı ---
-// Tarihleri gösterirken UTC yerine Yerel Saat (Local Time) kullanılmasını zorlar.
 Date.prototype.toISO8601String = function (format, offset) {
 
+    /** From: http://delete.me.uk/2005/03/iso8601.html */
+    /* Accepted values for the format [1-6]:
+     1 Year:
+       YYYY (eg 1997)
+     2 Year and month:
+       YYYY-MM (eg 1997-07)
+     3 Complete date:
+       YYYY-MM-DD (eg 1997-07-16)
+     4 Complete date plus hours and minutes:
+       YYYY-MM-DDThh:mmTZD (eg 1997-07-16T19:20+01:00)
+     5 Complete date plus hours, minutes and seconds:
+       YYYY-MM-DDThh:mm:ssTZD (eg 1997-07-16T19:20:30+01:00)
+     6 Complete date plus hours, minutes and seconds (without 'T' and '+'):
+       YYYY-MM-DDThh:mmTZD (eg 1997-07-16 19:20:00)
+     7 Complete date plus hours, minutes, seconds and a decimal
+       fraction of a second
+       YYYY-MM-DDThh:mm:ss.sTZD (eg 1997-07-16T19:20:30.45+01:00)
+    */
     if (!format) {
         var format = 6;
     }
-    // Offset yoksa yerel saat dilimini hesapla (UTC yerine)
     if (!offset) {
+        var offset = 'Z';
         var date = this;
-        // Yerel offset hesapla (Örn: +03:00)
-        var tzo = -date.getTimezoneOffset();
-        var dif = tzo >= 0 ? '+' : '-';
-        var pad = function(num) {
-            var norm = Math.floor(Math.abs(num));
-            return (norm < 10 ? '0' : '') + norm;
-        };
-        offset = dif + pad(tzo / 60) + ':' + pad(tzo % 60);
     } else {
         var d = offset.match(/([-+])([0-9]{2}):([0-9]{2})/);
         var offsetnum = (Number(d[2]) * 60) + Number(d[3]);
@@ -1394,19 +1389,15 @@ Date.prototype.toISO8601String = function (format, offset) {
     }
 
     var str = "";
-    // getFullYear() zaten yerel saattir
     str += date.getFullYear();
-    
     if (format > 1) {
-        // getMonth() zaten yerel saattir
         str += "-" + zeropad(date.getMonth() + 1);
     }
     if (format > 2) {
         if (format == 6) {
-            str += "-" + zeropad(date.getDate()); // Yerel Gün
-        } else {
-            // UTC Yerine Yerel Gün Kullan
             str += "-" + zeropad(date.getDate());
+        } else {
+            str += "-" + zeropad(date.getUTCDate());
         }
     }
     if (format > 3) {
@@ -1414,19 +1405,17 @@ Date.prototype.toISO8601String = function (format, offset) {
             str += " " + zeropad(date.getHours()) +
                 ":" + zeropad(date.getMinutes());
         } else {
-            // T ile ayrılan formatta da Yerel Saat Kullan
-            str += "T" + zeropad(date.getHours()) +
-                ":" + zeropad(date.getMinutes());
+            str += "T" + zeropad(date.getUTCHours()) +
+                ":" + zeropad(date.getUTCMinutes());
         }
     }
     if (format > 5) {
-        // UTC saniye yerine Yerel saniye (gerçi aynıdır ama tutarlılık için)
-        var secs = Number(date.getSeconds() + "." +
-            ((date.getMilliseconds() < 100) ? '0' : '') +
-            zeropad(date.getMilliseconds()));
+        var secs = Number(date.getUTCSeconds() + "." +
+            ((date.getUTCMilliseconds() < 100) ? '0' : '') +
+            zeropad(date.getUTCMilliseconds()));
         str += ":" + zeropad(secs);
     } else if (format > 4) {
-        str += ":" + zeropad(date.getSeconds());
+        str += ":" + zeropad(date.getUTCSeconds());
     }
 
     if (format > 3 && format != 6) {
