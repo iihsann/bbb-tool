@@ -290,6 +290,39 @@ meetings.switchState = function (state, arg) {
         $('#bbb_meeting_name_field').focus();
         meetings.utils.makeInlineCKEditor('bbb_welcome_message_textarea', 'BBB', '480', '200');
 
+        let startDate = new Date().toISOString();
+        if (!isNew && meeting.startDate) {
+          startDate = new Date(meeting.startDate).toISOString();
+        }
+
+        let endDate = new Date().toISOString();
+        if (!isNew && meeting.endDate) {
+          endDate = new Date(meeting.endDate).toISOString();
+        }
+
+        localDatePicker({
+            input: '#startDate2',
+            useTime: 1,
+            val: startDate,
+            parseFormat: 'YYYY-MM-DDTHH:mm:ss.SSSZ',
+            ashidden:{
+              iso8601: "startDate"
+            },
+        });
+
+        $('#startDate2 + button').prop("disabled", !showStartDate);
+
+        localDatePicker({
+            input: '#endDate2',
+            useTime: 1,
+            val: endDate,
+            parseFormat: 'YYYY-MM-DDTHH:mm:ss.SSSZ',
+            ashidden:{
+              iso8601: "endDate"
+            },
+        });
+
+        $('#endDate2 + button').prop("disabled", !showEndDate);
 
         meetings.addParticipantSelectionToUI(meeting, isNew);
 
