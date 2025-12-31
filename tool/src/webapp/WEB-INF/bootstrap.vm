@@ -55,6 +55,7 @@
     <script type="text/javascript" src="/bbb-tool/js/bbb_utils.js"></script>
     <script type="text/javascript" src="/bbb-tool/js/bbb_perms.js"></script>
     <script src="/library/js/lang-datepicker/lang-datepicker.js"></script>
+    <link  rel="stylesheet" href="/bbb-tool/css/jquery.dataTables.min.css">
 </head>
 <body>
 
