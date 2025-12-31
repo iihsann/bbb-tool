@@ -519,6 +519,8 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
             permissions.add(meetingManager.FN_RECORDING_EXTENDEDFORMATS_OWN);
         if( meetingManager.isUserAllowedInLocation(userId, meetingManager.FN_RECORDING_EXTENDEDFORMATS_ANY, siteId) )
             permissions.add(meetingManager.FN_RECORDING_EXTENDEDFORMATS_ANY);
+        if( meetingManager.isUserAllowedInLocation(userId, meetingManager.FN_RECORDING_DOWNLOAD, siteId) )
+            permissions.add(meetingManager.FN_RECORDING_DOWNLOAD); 
         if( meetingManager.isUserAllowedInLocation(userId, "calendar.new", siteId) )
             permissions.add("calendar.new");
         if( meetingManager.isUserAllowedInLocation(userId, "calendar.revise.own", siteId) )

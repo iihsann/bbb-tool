@@ -231,6 +231,11 @@
                     {var viewRecType = bbb_recording_view_tooltip[p.type] === undefined ? p.type : bbb_recording_view_tooltip[p.type]}
                     {if r.published == 'true'}
                         <a href="${D}{p.url}" title="${D}{viewRecType}" target="_blank">${D}{recType}</a>&nbsp;
+                        <button onclick="openInNewTab('${D}{p.url}')">${D}{bbb_recordings_watch}</button>&nbsp;
+                        {if r.canDownload}
+                          <button class="bbb_download_link" id="bbb_download_link"  onclick="openInNewTab('https://scalelitey.deu.edu.tr/download/presentation/${D}{r.recordID}')">${D}{bbb_recordings_download}</button>
+                        {/if}
+                        &nbsp;
                     {else}
                         ${D}{recType}&nbsp;
                     {/if}
@@ -449,6 +454,7 @@
             <th>${D}{bbb_permissions_recordings_extendedformats_own}</th>
             <th>${D}{bbb_permissions_recordings_extendedformats_any}</th>
             {/if}
+            <th>${D}{bbb_permissions_recordings_download}</th>
         </tr>
     </thead>
 <tbody>
@@ -470,6 +476,7 @@
     <td><input type="checkbox" class="bbb_permission_checkbox" {if p.bbb_recording_extendedformats_own}checked="checked"{/if} id="${D}{p.role}:bbb.recording.extendedformats.own"/></td>
     <td><input type="checkbox" class="bbb_permission_checkbox" {if p.bbb_recording_extendedformats_any}checked="checked"{/if} id="${D}{p.role}:bbb.recording.extendedformats.any"/></td>
     {/if}
+    <td><input type="checkbox" class="bbb_permission_checkbox" {if p.bbb_recording_download}checked="checked"{/if} id="${D}{p.role}:bbb.recording.download"/></td>
 </tr>
 {/for}
 </tbody>

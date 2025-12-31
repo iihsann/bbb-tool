@@ -332,40 +332,65 @@ meetings.switchState = function (state, arg) {
 
         // Setup description/welcome msg editor.
         meetings.utils.makeInlineCKEditor('bbb_welcome_message_textarea', 'BBB', '480', '200');
+        // ihsan
+        // let startDate = new Date().toISOString();
+        // if (!isNew && meeting.startDate) {
+        //   startDate = new Date(meeting.startDate).toISOString();
+        // }
 
-        let startDate = new Date().toISOString();
-        if (!isNew && meeting.startDate) {
-          startDate = new Date(meeting.startDate).toISOString();
+        // let endDate = new Date().toISOString();
+        // if (!isNew && meeting.endDate) {
+        //   endDate = new Date(meeting.endDate).toISOString();
+        // }
+
+        // localDatePicker({
+        //     input: '#startDate2',
+        //     useTime: 1,
+        //     val: startDate,
+        //     parseFormat: 'YYYY-MM-DDTHH:mm:ss.SSSZ',
+        //     ashidden:{
+        //       iso8601: "startDate"
+        //     },
+        // });
+
+        // $('#startDate2 + button').prop("disabled", !showStartDate);
+
+        // localDatePicker({
+        //     input: '#endDate2',
+        //     useTime: 1,
+        //     val: endDate,
+        //     parseFormat: 'YYYY-MM-DDTHH:mm:ss.SSSZ',
+        //     ashidden:{
+        //       iso8601: "endDate"
+        //     },
+        // });
+
+        // $('#endDate2 + button').prop("disabled", !showEndDate);
+        // Setup time picker.
+        var zeropad = function (num) {
+            return ((num < 10) ? '0' : '') + num;
         }
-
-        let endDate = new Date().toISOString();
-        if (!isNew && meeting.endDate) {
-          endDate = new Date(meeting.endDate).toISOString();
-        }
-
-        localDatePicker({
-            input: '#startDate2',
-            useTime: 1,
-            val: startDate,
-            parseFormat: 'YYYY-MM-DDTHH:mm:ss.SSSZ',
-            ashidden:{
-              iso8601: "startDate"
-            },
+        jQuery('#startTime').val(zeropad(startDate.getHours()) + ':' + zeropad(startDate.getMinutes()));
+        jQuery('#endTime').val(zeropad(endDate.getHours()) + ':' + zeropad(endDate.getMinutes()));
+        jQuery(".time-picker").remove();
+        jQuery("#startTime, #endTime").timePicker({
+            separator: ':'
         });
 
-        $('#startDate2 + button').prop("disabled", !showStartDate);
-
-        localDatePicker({
-            input: '#endDate2',
-            useTime: 1,
-            val: endDate,
-            parseFormat: 'YYYY-MM-DDTHH:mm:ss.SSSZ',
-            ashidden:{
-              iso8601: "endDate"
-            },
+        // Setup date picker.
+        jQuery.datepick.setDefaults({
+            dateFormat: jQuery.datepick.W3C,
+            defaultDate: '+0',
+            showDefault: true,
+            showOn: 'both',
+            buttonImageOnly: true,
+            buttonImage: '/library/calendar/images/calendar/cal.gif'
         });
+        jQuery('#startDate2, #endDate2').datepick();
+        jQuery('#startDate2').datepick('setDate', startDate);
+        jQuery('#endDate2').datepick('setDate', endDate);
+        //end ihsan
 
-        $('#endDate2 + button').prop("disabled", !showEndDate);
 
         // Add meeting participants.
         meetings.addParticipantSelectionToUI(meeting, isNew);
@@ -506,20 +531,56 @@ meetings.switchState = function (state, arg) {
             meetings.switchState('currentMeetings');
         }
     } else if ('recordings' === state) {
-        $("#bbb_recordings_link").parent().addClass('current');
+        var r = confirm("Tüm kayıtlar getirilicek, bu durum tarayıcınızda kilitlenmelere yol açabilir. Tüm kayıtları getirmek istediğinize emin misiniz?");
+        if (r != true) {
+            return;
+        }
 
+        $("#bbb_recordings_link").parent().addClass('current');
+        
         // Show meeting list.
         if (meetings.userPerms.bbbViewMeetingList) {
             // Get recording list.
             meetings.refreshRecordingList();
 
+            /* MEETINGS RENDER (OLD)
             meetings.utils.render('bbb_recordings_template', {
                 'recordings': meetings.currentRecordings,
                 'stateFunction': 'recordings'
             }, 'bbb_content');
+            */
+           // Watch for permissions changes, check meeting dates.
+            for (var i = 0; i < meetings.currentRecordings.length; i++) {
+                meetings.utils.setRecordingPermissionParams(meetings.currentRecordings[i]);
+                 meetings.currentRecordings[i].playback[0]["preview"]=[];
+                var images = [];
+                for (var j = 0; j < meetings.currentRecordings[i].playback.length; j++) {
+                    if (meetings.currentRecordings[i].playback[j].preview && meetings.currentRecordings[i].playback[j].preview.length > images.length) {
+                        images = meetings.currentRecordings[i].playback[j].preview;
+                    }
+                }
+                if (images.length) {
+                    meetings.currentRecordings[i].images = images;
+                }
+            }
+            // Render & Sayfalandır
+            $.when(meetings.utils.render('bbb_recordings_template', {
+                'recordings': meetings.currentRecordings,
+                'stateFunction': 'recordings'
+            }, 'bbb_content')).then($('#bbb_recording_table').DataTable( { "pagingType": "full_numbers", "order": [[ 2, "desc" ]] } ));
 
             // --- DEU CUSTOMIZATION: Removed Manual Search ---
             /* Removed manual keyup and tablesorter code */
+            if (!meetings.userPerms.bbbRecordingDownload) {
+                [].forEach.call(document.querySelectorAll('.bbb_download_link'), function (el) {
+                    el.style.visibility = 'hidden';
+                });
+            }
+            else {
+                [].forEach.call(document.querySelectorAll('.bbb_download_link'), function (el) {
+                    el.style.visibility = '';
+                });
+            }
 
             if ($('a.preview')) {
                 var xOffset = 5;
@@ -595,11 +656,39 @@ meetings.switchState = function (state, arg) {
                 // Get meeting list.
                 meetings.refreshRecordingList(arg.meetingId, arg.groupId);
 
+                // Watch for permissions changes, check meeting dates.
+                for (var i = 0; i < meetings.currentRecordings.length; i++) {
+                    meetings.currentRecordings[i].ownerId = "";
+                    meetings.utils.setRecordingPermissionParams(meetings.currentRecordings[i]);
+                    //console.log(grepDomain(meetings.currentRecordings[i].playback[0]["url"]))
+                    var images = [];
+                    for (var j = 0; j < meetings.currentRecordings[i].playback.length; j++) {
+                        if (meetings.currentRecordings[i].playback[j].preview && meetings.currentRecordings[i].playback[j].preview.length > images.length) {
+                            images = meetings.currentRecordings[i].playback[j].preview;
+                        }
+                    }
+                    if (images.length) {
+                        meetings.currentRecordings[i].images = images;
+                    }
+                }
+
+                //bbb_recordings_template.innerHTML=bbb_recordings_template.innerHTML.replace("bbb_server_url",grepDomain(meetings.currentRecordings[0].playback[0]["url"]))
                 meetings.utils.render('bbb_recordings_template', {
                     'recordings': meetings.currentRecordings,
                     'stateFunction': 'recordings_meeting',
                     'meetingId': arg.meetingId
                 }, 'bbb_content');
+
+                if (!meetings.userPerms.bbbRecordingDownload) {
+                    [].forEach.call(document.querySelectorAll('.bbb_download_link'), function (el) {
+                        el.style.visibility = 'hidden';
+                    });
+                }
+                else {
+                    [].forEach.call(document.querySelectorAll('.bbb_download_link'), function (el) {
+                        el.style.visibility = '';
+                    });
+                } 
 
                 if ($('a.preview')) {
                     var xOffset = 5;

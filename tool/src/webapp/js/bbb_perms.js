@@ -53,6 +53,8 @@ function BBBPermissions(data) {
                 this.bbbRecordingExtendedFormatsOwn = true;
             } else if ('bbb.recording.extendedformats.any' === data[i]) {
                 this.bbbRecordingExtendedFormatsAny = true;
+            }else if ('bbb.recording.download' === data[i]) {
+                this.bbbRecordingDownload = true;
             }
 
             // Sakai permissions.

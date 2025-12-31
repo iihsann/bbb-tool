@@ -401,10 +401,12 @@
             recording.canEdit = meetings.userPerms.bbbRecordingEditOwn || meetings.userPerms.bbbRecordingEditAny;
             recording.canDelete = meetings.userPerms.bbbRecordingDeleteOwn || meetings.userPerms.bbbRecordingDeleteAny;
             recording.canViewExtendedFormats = meetings.userPerms.bbbRecordingExtendedFormatsOwn || meetings.userPerms.bbbRecordingExtendedFormatsAny;
+            recording.canDownload = meetings.userPerms.bbbRecordingDownload;
         } else {
             recording.canEdit = meetings.userPerms.bbbRecordingEditAny;
             recording.canDelete = meetings.userPerms.bbbRecordingDeleteAny;
             recording.canViewExtendedFormats = meetings.userPerms.bbbRecordingExtendedFormatsAny;
+            recording.canDownload = meetings.userPerms.bbbRecordingDownload;
         }
     };
 
