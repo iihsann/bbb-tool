@@ -43,11 +43,13 @@
     ${sakaiHtmlHead}
     <link rel="stylesheet" type="text/css" href="/bbb-tool/css/bbb.css" />
     <link rel="stylesheet" type="text/css" href="/bbb-tool/lib/jquery.datepick.package-3.7.5/redmond.datepick.css" />
+    <link rel="stylesheet" type="text/css" href="/bbb-tool/lib/jquery.datepick.package-3.7.5/jquery.datepick.css" />
     <script>includeLatestJQuery("bigbluebutton");</script>
     <script type="text/javascript" src="/library/js/trimpath-template-latest.js"></script>
     <script type="text/javascript" src="/library/js/jquery/i18n-properties/1.0.9/jquery.i18n.properties-min-1.0.9.js"></script>
     <script type="text/javascript" src="/bbb-tool/lib/jquery.tablesorter.min.js"></script>
-    <script type="text/javascript" src="/bbb-tool/lib/jquery.datepick.package-3.7.5/jquery.datepick.pack.js"></script>
+    <script type="text/javascript" src="/bbb-tool/lib/jquery.datepick.package-3.7.5/jquery.datepick.js"></script>
+    <script type="text/javascript" src="/bbb-tool/lib/jquery.datepick.package-3.7.5/jquery.datepick-tr.js"></script>
     <script type="text/javascript" src="/bbb-tool/lib/jquery.browser.min.js"></script>
     <script type="text/javascript" src="/bbb-tool/lib/jquery.timePicker.js"></script>
     <script type="text/javascript" src="/bbb-tool/lib/jquery.tipTip.minified.js"></script>
@@ -392,17 +394,31 @@
       <tr>
         <td class="bbb_lbl">${D}{bbb_availability_startdate}</td>
         <td>
+            {var showStartDate = isNew ? false : meeting.startDate && meeting.startDate > 0}
             <input id="startDate1" type="checkbox" {if showStartDate}checked{/if} />
-            <input id="startDate2" name="startDate2" class="datepicker" value="" {if !showStartDate}disabled{/if}/>
-            <input id="addToCalendar" type="checkbox" name="addToCalendar" checked style="{if !canAddCalendar}display:none;{/if}"/ {if !showStartDate}disabled{/if} />
-            <span style="{if !canAddCalendar}display:none;{/if}">${D}{bbb_availability_addtocal}</span>
+            <span id="startDateBox" style="{if !showStartDate}display:none;{/if}">
+                <input id="startDate2" type="text" class="date-picker-field"/>
+                <input id="startTime" type="text" class="time-picker-field"/>
+                <input id="startDate" name="startDate" type="hidden"/>
+                
+                {if (isNew && meetings.userPerms.calendarNew) || (!isNew && ( (meeting.ownerId == meetings.currentUser.id && meetings.userPerms.calendarReviseOwn) || (meeting.ownerId != meetings.currentUser.id && meetings.userPerms.calendarReviseAny) ))}
+                    {var addToCalendar = isNew ? true : meeting.props.calendarEventId != null}
+                    <input id="addToCalendar" type="checkbox" name="addToCalendar" {if addToCalendar}checked{/if}/>
+                    <span>${D}{bbb_availability_addtocal}</span>
+                {/if}
+            </span>
         </td>
       </tr>
       <tr>
         <td class="bbb_lbl">${D}{bbb_availability_enddate}</td>
         <td>
+            {var showEndDate = isNew ? false : meeting.endDate && meeting.endDate > 0}
             <input id="endDate1" type="checkbox" {if showEndDate}checked{/if} />
-            <input id="endDate2" name="endDate2" class="datepicker" value="" disabled/>
+            <span id="endDateBox" style="{if !showEndDate}display:none;{/if}">
+                <input id="endDate2" type="text" class="date-picker-field"/>
+                <input id="endTime" type="text" class="time-picker-field"/>
+                <input id="endDate" name="endDate" type="hidden"/>
+            </span>
         </td>
       </tr>
     </table>
