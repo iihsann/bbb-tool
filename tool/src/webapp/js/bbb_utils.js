@@ -5,13 +5,15 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *             http://www.osedu.org/licenses/ECL-2.0
+ * http://www.osedu.org/licenses/ECL-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * MODIFIED: DEU Customizations ("Open in New Tab" Logic)
  */
 
 (function ($) {
@@ -19,52 +21,6 @@
     meetings.utils = {};
 
     meetings.utils.bbbUserSelectionOptions = null;
-
-    /**
-     * TIMEZONE FIX: Normalize date string to support multiple separators
-     * Converts . and - to / for consistent Date parsing across different locales
-     */
-    meetings.utils.normalizeDateString = function(dateStr) {
-        if (!dateStr || typeof dateStr !== 'string') {
-            return dateStr;
-        }
-        
-        dateStr = dateStr.trim();
-        
-        // Replace . with / (Turkish format: dd.MM.yyyy -> dd/MM/yyyy)
-        // Replace - with / but preserve time separator (hh:mm:ss)
-        return dateStr.replace(/\./g, '/').replace(/(\d+)-(\d+)-(\d+)/g, '$1/$2/$3');
-    };
-
-    /**
-     * TIMEZONE FIX: Format date for display in dd/MM/yyyy HH:mm format
-     * This ensures consistent format regardless of browser locale
-     */
-    meetings.utils.formatDateTimeForDisplay = function(date) {
-        if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-            return '';
-        }
-        
-        var d = String(date.getDate()).padStart(2, '0');
-        var m = String(date.getMonth() + 1).padStart(2, '0');
-        var y = date.getFullYear();
-        var h = String(date.getHours()).padStart(2, '0');
-        var min = String(date.getMinutes()).padStart(2, '0');
-        
-        // Use slash separator for BBB tool compatibility
-        return d + '/' + m + '/' + y + ' ' + h + ':' + min;
-    };
-
-    /**
-     * TIMEZONE FIX: Convert milliseconds to local date display format
-     */
-    meetings.utils.millisToDateDisplay = function(millis) {
-        if (!millis || millis <= 0) {
-            return '';
-        }
-        var date = new Date(millis);
-        return meetings.utils.formatDateTimeForDisplay(date);
-    };
 
     // Get the current user from EB.
     meetings.utils.getSettings = function (siteId, callback) {
@@ -606,10 +562,9 @@
     };
 
     // Unpublish the specified recording from the BigBlueButton server.
-    // BBB Utils Devamı - Part 2
-
     meetings.utils.unpublishRecordings = function (meetingID, recordID, stateFunction) {
         meetings.utils.setRecordings(meetingID, recordID, "false", stateFunction);
+
     };
 
     // Publish the specified recording from the BigBlueButton server.
@@ -742,6 +697,10 @@
         meetings.utils.hideMessage();
         if (linkSelector) {
             $(linkSelector).attr('href', url);
+            // --- DEU CUSTOMIZATION: OPEN IN NEW TAB ---
+            $(linkSelector).attr('target', '_blank');
+            // ------------------------------------------
+
             if (!multipleSessionsAllowed) {
                 $('#meeting_joinlink_' + meetingId).hide();
                 $('#meetingStatus').hide();
@@ -977,7 +936,7 @@
                 var htmlRecordings = "";
                 var groupID = groupId ? "', 'groupId':'" + groupId : "";
                 if (recordings.length > 0)
-                    htmlRecordings = '(<a href="javascript:;" onclick="return meetings.switchState(\'recordings_meeting\',{\'meetingId\':\'' + meetingId + groupID + '\'})" title="">' + bbb_meetinginfo_recordings(unescape(recordings.length)) + '</a>)&nbsp;&nbsp;';
+                    htmlRecordings = '(<a href="javascript:;\" onclick="return meetings.switchState(\'recordings_meeting\',{\'meetingId\':\'' + meetingId + groupID + '\'})" title="">' + bbb_meetinginfo_recordings(unescape(recordings.length)) + '</a>)&nbsp;&nbsp;';
                 else
                     htmlRecordings = "(" + bbb_meetinginfo_recordings(unescape(recordings.length)) + ")";
 
@@ -1030,6 +989,14 @@
                     return meeting.participants[i];
                 }
             }
+
+            // 4. If not found, just check if is superuser
+            ///No need for this, the superadmin has always the maintainer role
+            /*
+            if (securityService.isSuperUser()) {
+                return new Participant(Participant.SELECTION_USER, "admin", Participant.MODERATOR);
+            }
+            */
         }
         return null;
     }
@@ -1306,8 +1273,6 @@
         }
     };
 
-    // BBB Utils - Son Kısım (Part 3)
-
     meetings.utils.setNotifictionOptions = function () {
 
         if ($('#notifyParticipants')[0].checked) {
@@ -1392,46 +1357,18 @@ Date.prototype.dst = function () {
     return this.getTimezoneOffset() < this.stdTimezoneOffset();
 };
 
-/**
- * TIMEZONE FIX: Modified toISO8601String to use local time instead of UTC
- * This fixes the 3-hour timezone offset issue
- */
 Date.prototype.toISO8601String = function (format, offset) {
-
-    /** From: http://delete.me.uk/2005/03/iso8601.html */
-    /* Accepted values for the format [1-6]:
-     1 Year:
-       YYYY (eg 1997)
-     2 Year and month:
-       YYYY-MM (eg 1997-07)
-     3 Complete date:
-       YYYY-MM-DD (eg 1997-07-16)
-     4 Complete date plus hours and minutes:
-       YYYY-MM-DDThh:mmTZD (eg 1997-07-16T19:20+01:00)
-     5 Complete date plus hours, minutes and seconds:
-       YYYY-MM-DDThh:mm:ssTZD (eg 1997-07-16T19:20:30+01:00)
-     6 Complete date plus hours, minutes and seconds (without 'T' and '+'):
-       YYYY-MM-DD hh:mm:ss (eg 1997-07-16 19:20:00)
-       THIS FORMAT NOW USES LOCAL TIME, NOT UTC
-     7 Complete date plus hours, minutes, seconds and a decimal
-       fraction of a second
-       YYYY-MM-DDThh:mm:ss.sTZD (eg 1997-07-16T19:20:30.45+01:00)
-    */
     if (!format) {
         var format = 6;
     }
-    
-    // TIMEZONE FIX: Use local time instead of UTC for format 6
-    var date = this;
-    
-    // For other formats, handle offset as before
-    if (format !== 6 && offset && offset !== 'Z') {
+    if (!offset) {
+        var offset = 'Z';
+        var date = this;
+    } else {
         var d = offset.match(/([-+])([0-9]{2}):([0-9]{2})/);
-        if (d) {
-            var offsetnum = (Number(d[2]) * 60) + Number(d[3]);
-            offsetnum *= ((d[1] == '-') ? -1 : 1);
-            date = new Date(Number(this) + (offsetnum * 60000));
-        }
+        var offsetnum = (Number(d[2]) * 60) + Number(d[3]);
+        offsetnum *= ((d[1] == '-') ? -1 : 1);
+        var date = new Date(Number(Number(this) + (offsetnum * 60000)));
     }
 
     var zeropad = function (num) {
@@ -1439,50 +1376,38 @@ Date.prototype.toISO8601String = function (format, offset) {
     }
 
     var str = "";
-    
-    // TIMEZONE FIX: Use local date methods for format 6, UTC for others
-    if (format == 6) {
-        str += date.getFullYear();
-        if (format > 1) {
-            str += "-" + zeropad(date.getMonth() + 1);
-        }
-        if (format > 2) {
+    str += date.getFullYear();
+    if (format > 1) {
+        str += "-" + zeropad(date.getMonth() + 1);
+    }
+    if (format > 2) {
+        if (format == 6) {
             str += "-" + zeropad(date.getDate());
-        }
-        if (format > 3) {
-            str += " " + zeropad(date.getHours()) +
-                ":" + zeropad(date.getMinutes());
-        }
-        if (format > 4) {
-            str += ":" + zeropad(date.getSeconds());
-        }
-    } else {
-        // Use UTC methods for other formats
-        str += date.getFullYear();
-        if (format > 1) {
-            str += "-" + zeropad(date.getMonth() + 1);
-        }
-        if (format > 2) {
+        } else {
             str += "-" + zeropad(date.getUTCDate());
         }
-        if (format > 3) {
+    }
+    if (format > 3) {
+        if (format == 6) {
+            str += " " + zeropad(date.getHours()) +
+                ":" + zeropad(date.getMinutes());
+        } else {
             str += "T" + zeropad(date.getUTCHours()) +
                 ":" + zeropad(date.getUTCMinutes());
         }
-        if (format > 5) {
-            var secs = Number(date.getUTCSeconds() + "." +
-                ((date.getUTCMilliseconds() < 100) ? '0' : '') +
-                zeropad(date.getUTCMilliseconds()));
-            str += ":" + zeropad(secs);
-        } else if (format > 4) {
-            str += ":" + zeropad(date.getUTCSeconds());
-        }
-
-        if (format > 3 && offset) {
-            str += offset;
-        }
     }
-    
+    if (format > 5) {
+        var secs = Number(date.getUTCSeconds() + "." +
+            ((date.getUTCMilliseconds() < 100) ? '0' : '') +
+            zeropad(date.getUTCMilliseconds()));
+        str += ":" + zeropad(secs);
+    } else if (format > 4) {
+        str += ":" + zeropad(date.getUTCSeconds());
+    }
+
+    if (format > 3 && format != 6) {
+        str += offset;
+    }
     return str;
 }
 

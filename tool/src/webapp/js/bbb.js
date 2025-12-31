@@ -5,13 +5,15 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *             http://www.osedu.org/licenses/ECL-2.0
+ * http://www.osedu.org/licenses/ECL-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * MODIFIED: DEU Customizations (DataTables Integration & Turkish Localization)
  */
 
 /* Stuff that we always expect to be setup */
@@ -139,9 +141,9 @@ meetings.switchState = function (state, arg) {
             meetings.setMeetingList();
 
             meetings.currentMeetings.forEach(m => {
-
-              m.formattedStartDate = m.startDate ? new Date(m.startDate).toLocaleString(portal.locale, { dateStyle: "short", timeStyle: "short" }) : "";
-              m.formattedEndDate = m.endDate ? new Date(m.endDate).toLocaleString(portal.locale, { dateStyle: "short", timeStyle: "short" }) : "";
+              // --- DEU CUSTOMIZATION: Force Turkish Date Format ---
+              m.formattedStartDate = m.startDate ? new Date(m.startDate).toLocaleString('tr-TR', { dateStyle: "short", timeStyle: "short" }) : "";
+              m.formattedEndDate = m.endDate ? new Date(m.endDate).toLocaleString('tr-TR', { dateStyle: "short", timeStyle: "short" }) : "";
             });
 
             // Show meeting list.
@@ -161,15 +163,8 @@ meetings.switchState = function (state, arg) {
                 return meetings.switchState('addUpdateMeeting');
             });
 
-            var $rows = $('#bbb_meeting_table tbody tr');
-            $('.search').keyup(function () {
-                var val = $.trim($(this).val()).replace(/ +/g, ' ').toLowerCase();
-
-                $rows.show().filter(function () {
-                    var text = $(this).text().replace(/\s+/g, ' ').toLowerCase();
-                    return !~text.indexOf(val);
-                }).hide();
-            });
+            // --- DEU CUSTOMIZATION: Removed Old Search/Tablesorter Logic ---
+            /* Removed manual search loop and tablesorter init */
 
             // Show links if user has appropriate permissions.
             if (meetings.userPerms.bbbCreate) {
@@ -187,36 +182,33 @@ meetings.switchState = function (state, arg) {
                     jQuery(this).removeClass('bbb_even_row');
                 });
 
-            // Add parser for customized date format.
-            $.tablesorter.addParser({
-                id: "bbbDateTimeFormat",
-                is: function (s) {
-                    return false;
+            // --- DEU CUSTOMIZATION: DataTables Integration ---
+            $("#bbb_meeting_table").DataTable({
+                "language": {
+                   "sDecimal":        ",",
+                   "sEmptyTable":     "Tabloda herhangi bir veri mevcut değil",
+                   "sInfo":           "_TOTAL_ kayıttan _START_ - _END_ arasındaki kayıtlar gösteriliyor",
+                   "sInfoEmpty":      "Kayıt yok",
+                   "sInfoFiltered":   "(_MAX_ kayıt içerisinden bulunan)",
+                   "sInfoPostFix":    "",
+                   "sInfoThousands":  ".",
+                   "sLengthMenu":     "Sayfada _MENU_ kayıt göster",
+                   "sLoadingRecords": "Yükleniyor...",
+                   "sProcessing":     "İşleniyor...",
+                   "sSearch":         "Ara:",
+                   "sZeroRecords":    "Eşleşen kayıt bulunamadı",
+                   "oPaginate": {
+                       "sFirst":    "İlk",
+                       "sLast":     "Son",
+                       "sNext":     "Sonraki",
+                       "sPrevious": "Önceki"
+                   }
                 },
-                format: function (s, table) {
-                    return $.tablesorter.formatFloat(new Date(s).getTime());
-                },
-                type: "numeric"
-            });
-
-            // Add sorting capabilities.
-            $("#bbb_meeting_table").tablesorter({
-                cssHeader: 'bbb_sortable_table_header',
-                cssAsc: 'bbb_sortable_table_header_sortup',
-                cssDesc: 'bbb_sortable_table_header_sortdown',
-                headers: {
-                    2: {
-                        sorter: 'bbbDateTimeFormat'
-                    },
-                    3: {
-                        sorter: 'bbbDateTimeFormat'
-                    }
-                },
-                // Sort DESC status:
-                // sortList: (bbbCurrentMeetings.length > 0) ? [[0,1]] : []
-                sortList: (meetings.currentMeetings.length > 0) ? [
-                    [0, 0]
-                ] : []
+                "order": [[ 0, "desc" ]],
+                "pageLength": 10,
+                "lengthMenu": [10, 25, 50, 100],
+                "searching": true,
+                "ordering": true
             });
 
             if (meetings.settings.config.autorefreshInterval.meetings > 0)
@@ -526,15 +518,8 @@ meetings.switchState = function (state, arg) {
                 'stateFunction': 'recordings'
             }, 'bbb_content');
 
-            var $rows = $('#bbb_recording_table tbody tr');
-            $('.search').keyup(function () {
-                var val = $.trim($(this).val()).replace(/ +/g, ' ').toLowerCase();
-
-                $rows.show().filter(function () {
-                    var text = $(this).text().replace(/\s+/g, ' ').toLowerCase();
-                    return !~text.indexOf(val);
-                }).hide();
-            });
+            // --- DEU CUSTOMIZATION: Removed Manual Search ---
+            /* Removed manual keyup and tablesorter code */
 
             if ($('a.preview')) {
                 var xOffset = 5;
@@ -564,41 +549,33 @@ meetings.switchState = function (state, arg) {
                     jQuery(this).removeClass('bbb_even_row');
                 });
 
-            // Add parser for customized date format.
-            $.tablesorter.addParser({
-                id: "bbbRecDateTimeFormat",
-                is: function (s) {
-                    return false;
+            // --- DEU CUSTOMIZATION: DataTables for Recordings ---
+            $("#bbb_recording_table").DataTable({
+                "language": {
+                   "sDecimal":        ",",
+                   "sEmptyTable":     "Tabloda herhangi bir veri mevcut değil",
+                   "sInfo":           "_TOTAL_ kayıttan _START_ - _END_ arasındaki kayıtlar gösteriliyor",
+                   "sInfoEmpty":      "Kayıt yok",
+                   "sInfoFiltered":   "(_MAX_ kayıt içerisinden bulunan)",
+                   "sInfoPostFix":    "",
+                   "sInfoThousands":  ".",
+                   "sLengthMenu":     "Sayfada _MENU_ kayıt göster",
+                   "sLoadingRecords": "Yükleniyor...",
+                   "sProcessing":     "İşleniyor...",
+                   "sSearch":         "Ara:",
+                   "sZeroRecords":    "Eşleşen kayıt bulunamadı",
+                   "oPaginate": {
+                       "sFirst":    "İlk",
+                       "sLast":     "Son",
+                       "sNext":     "Sonraki",
+                       "sPrevious": "Önceki"
+                   }
                 },
-                format: function (s, table) {
-                    s = s.replace(/[a-zA-Z].*/g, '');
-                    s = s.trim();
-                    return $.tablesorter.formatFloat(new Date(s).getTime());
-                },
-                type: "numeric"
-            });
-
-            // Add sorting capabilities.
-            $("#bbb_recording_table").tablesorter({
-                cssHeader: 'bbb_sortable_table_header',
-                cssAsc: 'bbb_sortable_table_header_sortup',
-                cssDesc: 'bbb_sortable_table_header_sortdown',
-                headers: {
-                    1: {
-                        sorter: false
-                    },
-                    3: {
-                        sorter: 'bbbRecDateTimeFormat'
-                    },
-                    4: {
-                        sorter: false
-                    }
-                },
-                // Sort DESC status:
-                // sortList: (bbbCurrentMeetings.length > 0) ? [[2,1]] : [].
-                sortList: (meetings.currentRecordings.length > 0) ? [
-                    [0, 0]
-                ] : []
+                "order": [[ 0, "desc" ]],
+                "pageLength": 10,
+                "lengthMenu": [10, 25, 50, 100],
+                "searching": true,
+                "ordering": true
             });
 
             if (meetings.settings.config.autorefreshInterval.recordings > 0)
@@ -652,41 +629,33 @@ meetings.switchState = function (state, arg) {
                         jQuery(this).removeClass('bbb_even_row');
                     });
 
-                // Add parser for customized date format.
-                $.tablesorter.addParser({
-                    id: "bbbRecDateTimeFormat",
-                    is: function (s) {
-                        return false;
+                // --- DEU CUSTOMIZATION: DataTables for Specific Meeting Recordings ---
+                $("#bbb_recording_table").DataTable({
+                    "language": {
+                       "sDecimal":        ",",
+                       "sEmptyTable":     "Tabloda herhangi bir veri mevcut değil",
+                       "sInfo":           "_TOTAL_ kayıttan _START_ - _END_ arasındaki kayıtlar gösteriliyor",
+                       "sInfoEmpty":      "Kayıt yok",
+                       "sInfoFiltered":   "(_MAX_ kayıt içerisinden bulunan)",
+                       "sInfoPostFix":    "",
+                       "sInfoThousands":  ".",
+                       "sLengthMenu":     "Sayfada _MENU_ kayıt göster",
+                       "sLoadingRecords": "Yükleniyor...",
+                       "sProcessing":     "İşleniyor...",
+                       "sSearch":         "Ara:",
+                       "sZeroRecords":    "Eşleşen kayıt bulunamadı",
+                       "oPaginate": {
+                           "sFirst":    "İlk",
+                           "sLast":     "Son",
+                           "sNext":     "Sonraki",
+                           "sPrevious": "Önceki"
+                       }
                     },
-                    format: function (s, table) {
-                        s = s.replace(/[a-zA-Z].*/g, '');
-                        s = s.trim();
-                        return $.tablesorter.formatFloat(new Date(s).getTime());
-                    },
-                    type: "numeric"
-                });
-
-                // Add sorting capabilities.
-                $("#bbb_recording_table").tablesorter({
-                    cssHeader: 'bbb_sortable_table_header',
-                    cssAsc: 'bbb_sortable_table_header_sortup',
-                    cssDesc: 'bbb_sortable_table_header_sortdown',
-                    headers: {
-                        1: {
-                            sorter: false
-                        },
-                        3: {
-                            sorter: 'bbbRecDateTimeFormat'
-                        },
-                        4: {
-                            sorter: false
-                        }
-                    },
-                    // Sort DESC status:
-                    //sortList: (bbbCurrentMeetings.length > 0) ? [[2,1]] : []
-                    sortList: (meetings.currentRecordings.length > 0) ? [
-                        [0, 0]
-                    ] : []
+                    "order": [[ 0, "desc" ]],
+                    "pageLength": 10,
+                    "lengthMenu": [10, 25, 50, 100],
+                    "searching": true,
+                    "ordering": true
                 });
 
                 if (meetings.settings.config.autorefreshInterval.recordings > 0)
@@ -922,7 +891,9 @@ meetings.refreshRecordingList = function (meetingId, groupId) {
       let length = parseInt(r.endTime) - parseInt(r.startTime);
       r.formattedDuration = Math.round(length / 60000);
 
-      r.formattedStartTime = r.startTime ? new Date(parseInt(r.startTime)).toLocaleString(portal.locale, { dateStyle: "short", timeStyle: "short" }) : "";
+      // --- DEU CUSTOMIZATION: Force Turkish Date Format ---
+      r.formattedStartTime = r.startTime ? new Date(parseInt(r.startTime)).toLocaleString('tr-TR', { dateStyle: "short", timeStyle: "short" }) : "";
+      
       r.ownerId = "";
       meetings.utils.setRecordingPermissionParams(r);
 

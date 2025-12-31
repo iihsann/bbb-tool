@@ -51,6 +51,7 @@
     <script type="text/javascript" src="/bbb-tool/lib/jquery.browser.min.js"></script>
     <!--script type="text/javascript" src="/bbb-tool/lib/jquery.timePicker.js"></script-->
     <script type="text/javascript" src="/bbb-tool/lib/jquery.tipTip.minified.js"></script>
+    <script type="text/javascript" src="/bbb-tool/js/jquery.dataTables.min.js"></script>
     <script type="text/javascript" src="/bbb-tool/js/bbb_utils.js"></script>
     <script type="text/javascript" src="/bbb-tool/js/bbb_perms.js"></script>
     <script src="/library/js/lang-datepicker/lang-datepicker.js"></script>
