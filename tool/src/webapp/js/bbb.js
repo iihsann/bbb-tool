@@ -290,38 +290,6 @@ meetings.switchState = function (state, arg) {
         $('#bbb_meeting_name_field').focus();
         meetings.utils.makeInlineCKEditor('bbb_welcome_message_textarea', 'BBB', '480', '200');
 
-        // ihsan's datepicker modifications
-        let startDate = new Date();
-        if (!isNew && meeting.startDate) {
-          startDate = new Date(meeting.startDate);
-        }
-        let endDate = new Date();
-        if (!isNew && meeting.endDate) {
-          endDate = new Date(meeting.endDate);
-        }
-
-        var zeropad = function (num) {
-            return ((num < 10) ? '0' : '') + num;
-        }
-        jQuery('#startTime').val(zeropad(startDate.getHours()) + ':' + zeropad(startDate.getMinutes()));
-        jQuery('#endTime').val(zeropad(endDate.getHours()) + ':' + zeropad(endDate.getMinutes()));
-        jQuery(".time-picker").remove();
-        jQuery("#startTime, #endTime").timePicker({
-            separator: ':'
-        });
-
-        jQuery.datepick.setDefaults({
-            dateFormat: jQuery.datepick.W3C,
-            defaultDate: '+0',
-            showDefault: true,
-            showOn: 'both',
-            buttonImageOnly: true,
-            buttonImage: '/library/calendar/images/calendar/cal.gif'
-        });
-        jQuery('#startDate2, #endDate2').datepick();
-        jQuery('#startDate2').datepick('setDate', startDate);
-        jQuery('#endDate2').datepick('setDate', endDate);
-        //end ihsan
 
         meetings.addParticipantSelectionToUI(meeting, isNew);
 
