@@ -12,7 +12,10 @@ meetings.checkAllMeetingAvailabilityId = null;
 meetings.checkRecordingAvailabilityId = null;
 meetings.refreshRecordingListId = null;
 meetings.errorLog = new Object();
-
+function openInNewTab(url) {
+  var win = window.open(url, '_blank');
+  if (win) win.focus();
+}
 (function ($) {
     // ... (Başlangıç ayarları aynen kalıyor) ...
     var arg = meetings.startupArgs;
@@ -931,14 +934,14 @@ meetings.sortDropDown = function (dropDownId) {
 
 //Eklemeler v1.3
 //Eklemeler
-document.getElementById('bbb_recordings_template').innerHTML=document.getElementById('bbb_recordings_template').innerHTML.replace('meetingInfo','currentMeetings')
+// document.getElementById('bbb_recordings_template').innerHTML=document.getElementById('bbb_recordings_template').innerHTML.replace('meetingInfo','currentMeetings')
 
-function openInNewTab(url) {
-  var win = window.open(url, '_blank');
-  win.focus();
-}
+// function openInNewTab(url) {
+//   var win = window.open(url, '_blank');
+//   win.focus();
+// }
 
-bbb_recordings_template.innerHTML=bbb_recordings_template.innerHTML.replace("<a href=\"${p.url}\" title=\"${viewRecType}\" target=\"_blank\">${recType}</a>", "<button onclick=\"openInNewTab('${p.url}')\">${recType}</button>");
+// bbb_recordings_template.innerHTML=bbb_recordings_template.innerHTML.replace("<a href=\"${p.url}\" title=\"${viewRecType}\" target=\"_blank\">${recType}</a>", "<button onclick=\"openInNewTab('${p.url}')\">${recType}</button>");
 
 /** Protoypes */
 if (!Array.prototype.indexOf) {
