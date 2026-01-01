@@ -46,11 +46,10 @@
     <link  rel="stylesheet" href="/bbb-tool/css/jquery.dataTables.min.css">
     <style>
         /* =================================================================================
-           1. TEMEL DÜZELTMELER (Her Zaman Geçerli)
-           Sadece DataTable bileşenlerini hedefler.
+           1. TEMEL YAPI DÜZELTMELERİ (Her Zaman Geçerli)
            ================================================================================= */
         
-        /* "Kayıt Göster" ve "Arama" kutularının hizalaması */
+        /* Dropdown ve Arama Kutusu Hizalaması */
         .dataTables_wrapper .dataTables_length select {
             padding: 4px 24px 4px 8px !important;
             min-height: 30px;
@@ -69,23 +68,22 @@
 
         /* =================================================================================
            2. KOYU MOD (Sadece '.sakaiUserTheme-dark' varsa)
-           Seçiciler '.dataTables_wrapper' veya 'table.dataTable' ile sınırlandırılmıştır.
            ================================================================================= */
 
-        /* 2.1 Ana Arka Plan (Sadece Tool Gövdesi) */
+        /* 2.1 Ana Gövde ve Container */
         .sakaiUserTheme-dark body, 
         .sakaiUserTheme-dark .portletBody {
             background-color: #212529 !important;
             color: #e9ecef !important;
         }
 
-        /* 2.2 Sadece Tablo İçeriği */
+        /* 2.2 Tablo Satırları ve Hücreler */
         .sakaiUserTheme-dark table.dataTable tbody tr { 
             background-color: #343a40 !important; 
             color: #e9ecef !important; 
         }
         
-        /* Zebra (Tek/Çift Satır) */
+        /* Zebra Efekti (Tek/Çift Satır) */
         .sakaiUserTheme-dark table.dataTable.stripe tbody tr.odd, 
         .sakaiUserTheme-dark table.dataTable.display tbody tr.odd { 
             background-color: #2c3034 !important; 
@@ -96,7 +94,7 @@
             background-color: #495057 !important; 
         }
         
-        /* Başlıklar */
+        /* Başlıklar (Header) */
         .sakaiUserTheme-dark table.dataTable thead th, 
         .sakaiUserTheme-dark table.dataTable thead td { 
             background-color: #1a1d20 !important; 
@@ -104,7 +102,7 @@
             border-bottom: 1px solid #495057 !important; 
         }
         
-        /* Alt Bilgi ve Kenarlıklar */
+        /* Alt Bilgi (Footer) ve Kenarlıklar */
         .sakaiUserTheme-dark table.dataTable tfoot th, 
         .sakaiUserTheme-dark table.dataTable tfoot td { 
             border-top: 1px solid #495057 !important; 
@@ -119,7 +117,7 @@
             border-bottom: 1px solid #495057 !important; 
         }
 
-        /* 2.3 SADECE DataTable içindeki Input ve Selectler */
+        /* 2.3 Form Elemanları (Input & Select) */
         .sakaiUserTheme-dark .dataTables_wrapper input, 
         .sakaiUserTheme-dark .dataTables_wrapper select { 
             background-color: #343a40 !important; 
@@ -127,7 +125,16 @@
             border: 1px solid #6c757d !important; 
         }
 
-        /* 2.4 Tablo İçindeki Linkler */
+        /* 2.4 Etiket Yazıları (Ara, Kayıt Göster vb.) - DÜZELTİLDİ */
+        .sakaiUserTheme-dark .dataTables_wrapper .dataTables_length,
+        .sakaiUserTheme-dark .dataTables_wrapper .dataTables_filter,
+        .sakaiUserTheme-dark .dataTables_wrapper .dataTables_info,
+        .sakaiUserTheme-dark .dataTables_wrapper .dataTables_processing,
+        .sakaiUserTheme-dark .dataTables_wrapper .dataTables_paginate {
+            color: #e9ecef !important;
+        }
+
+        /* 2.5 Tablo Linkleri */
         .sakaiUserTheme-dark table.dataTable tbody tr a { 
             color: #61dafb !important; 
         }
@@ -136,17 +143,22 @@
             text-decoration: underline; 
         }
 
-        /* 2.5 DataTables Sayfalama Butonları */
+        /* 2.6 Sayfalama Butonları (Pagination) - DÜZELTİLDİ */
+        /* Normal Butonlar */
         .sakaiUserTheme-dark .dataTables_wrapper .dataTables_paginate .paginate_button { 
             color: #fff !important; 
+            background: transparent !important;
         }
+        /* Aktif Olan Sayfa (Mavi zemin, beyaz yazı) */
+        .sakaiUserTheme-dark .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+        .sakaiUserTheme-dark .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover { 
+            color: #ffffff !important; 
+            background: #0d6efd !important; /* Bootstrap Mavisi */
+            border: 1px solid #0d6efd !important;
+        }
+        /* Pasif Butonlar */
         .sakaiUserTheme-dark .dataTables_wrapper .dataTables_paginate .paginate_button.disabled { 
             color: #6c757d !important; 
-        }
-        
-        /* 2.6 DataTables Bilgi Yazısı */
-        .sakaiUserTheme-dark .dataTables_wrapper .dataTables_info { 
-            color: #adb5bd !important; 
         }
     </style>
     <script>includeLatestJQuery("bigbluebutton");</script>
