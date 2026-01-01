@@ -43,6 +43,20 @@
     ${sakaiHtmlHead}
     <link rel="stylesheet" type="text/css" href="/bbb-tool/css/bbb.css" />
     <link rel="stylesheet" type="text/css" href="/bbb-tool/lib/jquery.datepick.package-3.7.5/redmond.datepick.css" />
+    <link  rel="stylesheet" href="/bbb-tool/css/jquery.dataTables.min.css">
+    <style>
+        .dataTables_length select {
+            padding: 4px 24px 4px 8px !important; /* Sağ tarafa ok için boşluk */
+            width: auto !important;
+            height: auto !important;
+            min-height: 30px;
+            margin: 0 5px !important;
+            display: inline-block !important;
+            border: 1px solid #ccc !important;
+            border-radius: 4px;
+            background-color: #fff;
+        }
+    </style>
     <script>includeLatestJQuery("bigbluebutton");</script>
     <script type="text/javascript" src="/library/js/trimpath-template-latest.js"></script>
     <script type="text/javascript" src="/library/js/jquery/i18n-properties/1.0.9/jquery.i18n.properties-min-1.0.9.js"></script>
@@ -55,7 +69,6 @@
     <script type="text/javascript" src="/bbb-tool/js/bbb_utils.js"></script>
     <script type="text/javascript" src="/bbb-tool/js/bbb_perms.js"></script>
     <script src="/library/js/lang-datepicker/lang-datepicker.js"></script>
-    <link  rel="stylesheet" href="/bbb-tool/css/jquery.dataTables.min.css">
 </head>
 <body>
 
@@ -164,7 +177,6 @@
 {else}
     <button onclick="meetings.switchState('recordings')" title="${D}{bbb_refresh}"><i class="fa fa-refresh"></i>&nbsp;${D}{bbb_refresh}</button>
 {/if}
-    <input type="text" class="search" id="recSearch" placeholder=${bbb_search}>
     <table id="bbb_recording_table" class="listHier">
         <thead>
             <tr>
