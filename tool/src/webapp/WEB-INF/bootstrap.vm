@@ -39,13 +39,50 @@
                 checkICalOption: ${checkICalOption},
              }
         };
+        jQuery(document).ready(function($) {
+            // Fonksiyon: Koyu mod aktif mi kontrol et
+            function checkDarkMode() {
+                var isDark = false;
+                
+                // 1. Yöntem: Tarayıcı/Sistem koyu modda mı?
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    isDark = true;
+                }
+                
+                // 2. Yöntem: Sakai Ana Portalı (Parent Window) koyu modda mı?
+                try {
+                    if (window.parent && window.parent.document && $(window.parent.document.body).hasClass('Mrphs-sakai-dark')) {
+                        isDark = true;
+                    }
+                } catch(e) {
+                    // Cross-origin hatası olursa burası çalışır, önemli değil.
+                }
+
+                // Eğer koyu mod ise body'ye özel sınıf ekle
+                if (isDark) {
+                    $('body').addClass('dark-mode-on');
+                } else {
+                    $('body').removeClass('dark-mode-on');
+                }
+            }
+
+            // Sayfa açılınca kontrol et
+            checkDarkMode();
+            
+            // DataTables her çizildiğinde (sayfalama yapıldığında) tekrar kontrol et (Garanti olsun)
+            $(document).on('draw.dt', function() {
+                checkDarkMode();
+            });
+        });
     </script>
     ${sakaiHtmlHead}
     <link rel="stylesheet" type="text/css" href="/bbb-tool/css/bbb.css" />
     <link rel="stylesheet" type="text/css" href="/bbb-tool/lib/jquery.datepick.package-3.7.5/redmond.datepick.css" />
     <link  rel="stylesheet" href="/bbb-tool/css/jquery.dataTables.min.css">
     <style>
-        /* --- Sayfa Sayısı Selectbox ı için --- */
+        /* =========================================
+          1. GENEL YAPI DÜZELTMELERİ (HER ZAMAN GEÇERLİ)
+          ========================================= */
         .dataTables_length select {
             padding: 4px 24px 4px 8px !important;
             width: auto !important;
@@ -56,86 +93,92 @@
             border: 1px solid #ccc !important;
             border-radius: 4px;
             background-color: #fff;
+            line-height: 1.5 !important;
+            color: #333; /* Açık modda yazı rengi */
+        }
+        .dataTables_filter input {
+            margin-left: 5px !important;
+            border: 1px solid #ccc !important;
+            border-radius: 4px;
+            padding: 4px !important;
+            color: #333;
         }
 
         /* =========================================
-          2. KOYU MOD RENKLERİ (SADECE DARK MODE)
-          Bu kodlar sadece Sakai koyu moddayken çalışır
+          2. KOYU MOD STİLLERİ (SADECE DARK MODE AKTİFKEN)
+          Javascript 'dark-mode-on' sınıfını ekleyince çalışır.
           ========================================= */
         
-        /* Tablo Satırları */
-        body.Mrphs-sakai-dark table.dataTable tbody tr {
+        /* Genel Arka Plan ve Yazı Rengi */
+        body.dark-mode-on, 
+        body.dark-mode-on .portletBody {
+            background-color: #212529 !important; /* Ana zemin */
+            color: #e9ecef !important;
+        }
+
+        /* Tablo Satırları (Normal) */
+        body.dark-mode-on table.dataTable tbody tr {
             background-color: #343a40 !important;
             color: #e9ecef !important;
         }
 
-        /* Tek/Çift Satır Ayrımı */
-        body.Mrphs-sakai-dark table.dataTable.stripe tbody tr.odd, 
-        body.Mrphs-sakai-dark table.dataTable.display tbody tr.odd {
+        /* Tek/Çift Satır Ayrımı (Zebra) */
+        body.dark-mode-on table.dataTable.stripe tbody tr.odd, 
+        body.dark-mode-on table.dataTable.display tbody tr.odd {
             background-color: #2c3034 !important;
         }
 
-        /* Hover (Üzerine gelince) */
-        body.Mrphs-sakai-dark table.dataTable.display tbody tr:hover {
+        /* Mouse ile üzerine gelince (Hover) */
+        body.dark-mode-on table.dataTable.display tbody tr:hover {
             background-color: #495057 !important;
             cursor: pointer;
         }
-        
-        /* Seçili Satır (Sorting) */
-        body.Mrphs-sakai-dark table.dataTable.display tbody tr.odd > .sorting_1 {
-            background-color: #282c30 !important;
-        }
-        body.Mrphs-sakai-dark table.dataTable.display tbody tr.even > .sorting_1 {
-            background-color: #30363b !important;
-        }
 
-        /* Tablo Başlığı (Header) */
-        body.Mrphs-sakai-dark table.dataTable thead th,
-        body.Mrphs-sakai-dark table.dataTable thead td {
-            background-color: #212529 !important;
+        /* Tablo Başlıkları (Header) */
+        body.dark-mode-on table.dataTable thead th,
+        body.dark-mode-on table.dataTable thead td {
+            background-color: #1a1d20 !important; /* Daha koyu başlık */
             color: #fff !important;
             border-bottom: 1px solid #495057 !important;
         }
 
-        /* Alt Bilgi (Footer) */
-        body.Mrphs-sakai-dark table.dataTable tfoot th,
-        body.Mrphs-sakai-dark table.dataTable tfoot td {
-            background-color: #212529 !important;
+        /* Tablo Alt Bilgi (Footer) */
+        body.dark-mode-on table.dataTable tfoot th,
+        body.dark-mode-on table.dataTable tfoot td {
+            background-color: #1a1d20 !important;
             color: #fff !important;
             border-top: 1px solid #495057 !important;
         }
 
         /* Input ve Select Kutuları (Koyu Modda) */
-        body.Mrphs-sakai-dark .dataTables_wrapper .dataTables_filter input,
-        body.Mrphs-sakai-dark .dataTables_wrapper .dataTables_length select {
+        body.dark-mode-on .dataTables_wrapper .dataTables_filter input,
+        body.dark-mode-on .dataTables_wrapper .dataTables_length select {
             background-color: #343a40 !important;
             color: #fff !important;
             border: 1px solid #6c757d !important;
         }
         
         /* Sayfalama Butonları */
-        body.Mrphs-sakai-dark .dataTables_wrapper .dataTables_paginate .paginate_button {
+        body.dark-mode-on .dataTables_wrapper .dataTables_paginate .paginate_button {
             color: #fff !important;
         }
-        body.Mrphs-sakai-dark .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+        body.dark-mode-on .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
             color: #6c757d !important;
         }
-        
+
         /* Satır Çizgileri */
-        body.Mrphs-sakai-dark table.dataTable tbody td {
+        body.dark-mode-on table.dataTable tbody td {
             border-bottom: 1px solid #4e555b !important;
             border-top: 1px solid #4e555b !important;
         }
-        body.Mrphs-sakai-dark table.dataTable.no-footer {
-            border-bottom: 1px solid #495057 !important;
-        }
         
         /* Link Renkleri (Mavi) */
-        body.Mrphs-sakai-dark table.dataTable tbody tr a {
+        body.dark-mode-on table.dataTable tbody tr a {
             color: #61dafb !important;
         }
-        body.Mrphs-sakai-dark table.dataTable tbody tr a:hover {
+        body.dark-mode-on table.dataTable tbody tr a:hover {
             color: #fff !important;
+            text-decoration: underline;
         }
     </style>
     <script>includeLatestJQuery("bigbluebutton");</script>
