@@ -39,41 +39,6 @@
                 checkICalOption: ${checkICalOption},
              }
         };
-        jQuery(document).ready(function($) {
-            // Fonksiyon: Koyu mod aktif mi kontrol et
-            function checkDarkMode() {
-                var isDark = false;
-                
-                // 1. Yöntem: Tarayıcı/Sistem koyu modda mı?
-                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    isDark = true;
-                }
-                
-                // 2. Yöntem: Sakai Ana Portalı (Parent Window) koyu modda mı?
-                try {
-                    if (window.parent && window.parent.document && $(window.parent.document.body).hasClass('Mrphs-sakai-dark')) {
-                        isDark = true;
-                    }
-                } catch(e) {
-                    // Cross-origin hatası olursa burası çalışır, önemli değil.
-                }
-
-                // Eğer koyu mod ise body'ye özel sınıf ekle
-                if (isDark) {
-                    $('body').addClass('dark-mode-on');
-                } else {
-                    $('body').removeClass('dark-mode-on');
-                }
-            }
-
-            // Sayfa açılınca kontrol et
-            checkDarkMode();
-            
-            // DataTables her çizildiğinde (sayfalama yapıldığında) tekrar kontrol et (Garanti olsun)
-            $(document).on('draw.dt', function() {
-                checkDarkMode();
-            });
-        });
     </script>
     ${sakaiHtmlHead}
     <link rel="stylesheet" type="text/css" href="/bbb-tool/css/bbb.css" />
@@ -728,6 +693,33 @@
 <script type="text/javascript" src="/bbb-tool/js/bbb.js"></script>
 
 </div> <!-- /portletBody -->
+<script type="text/javascript">
+    jQuery(document).ready(function($) {
+        function checkDarkMode() {
+            var isDark = false;
+            // 1. Tarayıcı Kontrolü
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                isDark = true;
+            }
+            // 2. Sakai Ana Sayfa Kontrolü
+            try {
+                if (window.parent && window.parent.document && $(window.parent.document.body).hasClass('Mrphs-sakai-dark')) {
+                    isDark = true;
+                }
+            } catch(e) {}
 
+            if (isDark) {
+                $('body').addClass('dark-mode-on');
+            } else {
+                $('body').removeClass('dark-mode-on');
+            }
+        }
+        checkDarkMode();
+        // Tablo değiştiğinde tekrar kontrol et
+        $(document).on('draw.dt', function() {
+            checkDarkMode();
+        });
+    });
+</script>
 </body>
 </html>
