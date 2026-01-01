@@ -234,7 +234,6 @@
                     {var recType = bbb_recording_type[p.type] === undefined ? p.type : bbb_recording_type[p.type]}
                     {var viewRecType = bbb_recording_view_tooltip[p.type] === undefined ? p.type : bbb_recording_view_tooltip[p.type]}
                     {if r.published == 'true'}
-                        <!-- <a href="${D}{p.url}" title="${D}{viewRecType}" target="_blank">${D}{recType}</a>&nbsp; -->
                         <button onclick="openInNewTab('${D}{p.url}')">${D}{bbb_recordings_watch}</button>&nbsp;
                         {if r.canDownload}
                           <button class="bbb_download_link" id="bbb_download_link"  onclick="openInNewTab('https://scalelitey.deu.edu.tr/download/presentation/${D}{r.recordID}')">${D}{bbb_recordings_download}</button>
