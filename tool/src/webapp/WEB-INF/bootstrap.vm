@@ -45,8 +45,9 @@
     <link rel="stylesheet" type="text/css" href="/bbb-tool/lib/jquery.datepick.package-3.7.5/redmond.datepick.css" />
     <link  rel="stylesheet" href="/bbb-tool/css/jquery.dataTables.min.css">
     <style>
+        /* --- Sayfa Sayısı Selectbox ı için --- */
         .dataTables_length select {
-            padding: 4px 24px 4px 8px !important; /* Sağ tarafa ok için boşluk */
+            padding: 4px 24px 4px 8px !important;
             width: auto !important;
             height: auto !important;
             min-height: 30px;
@@ -55,6 +56,85 @@
             border: 1px solid #ccc !important;
             border-radius: 4px;
             background-color: #fff;
+        }
+
+        /* --- YENİ KOYU TEMA KODLARI --- */
+
+        /* 1. Tablo Satırları (Genel) */
+        table.dataTable tbody tr {
+            background-color: #343a40 !important; /* Koyu Gri Arka Plan */
+            color: #e9ecef !important;            /* Açık Renk Yazı */
+        }
+
+        /* 2. Tek/Çift Satır Ayrımı (Striped Rows) */
+        table.dataTable.stripe tbody tr.odd, 
+        table.dataTable.display tbody tr.odd {
+            background-color: #2c3034 !important; /* Biraz daha koyu gri */
+        }
+
+        /* 3. Fare Üzerine Gelince (Hover Effect) */
+        table.dataTable.display tbody tr:hover {
+            background-color: #495057 !important; /* Hover rengi */
+            cursor: pointer;
+        }
+        
+        /* 4. Seçili Satır Varsa (Sorting sırasında) */
+        table.dataTable.display tbody tr.odd > .sorting_1, 
+        table.dataTable.order-column.stripe tbody tr.odd > .sorting_1 {
+            background-color: #282c30 !important;
+        }
+        table.dataTable.display tbody tr.even > .sorting_1, 
+        table.dataTable.order-column.stripe tbody tr.even > .sorting_1 {
+            background-color: #30363b !important;
+        }
+
+        /* 5. Tablo Başlığı (Header) */
+        table.dataTable thead th,
+        table.dataTable thead td {
+            background-color: #212529 !important; /* Başlık arka planı */
+            color: #fff !important;                /* Başlık yazısı */
+            border-bottom: 1px solid #495057 !important;
+        }
+
+        /* 6. Alt Bilgi (Footer) */
+        table.dataTable tfoot th,
+        table.dataTable tfoot td {
+            background-color: #212529 !important;
+            color: #fff !important;
+            border-top: 1px solid #495057 !important;
+        }
+
+        /* 7. Arama Kutusu ve Sayfalama Seçimi (Input & Select) */
+        .dataTables_wrapper .dataTables_filter input,
+        .dataTables_wrapper .dataTables_length select {
+            background-color: #343a40 !important;
+            color: #fff !important;
+            border: 1px solid #6c757d !important;
+        }
+        
+        /* 8. Sayfalama Butonları (Pagination) */
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            color: #fff !important; /* Buton yazı rengi */
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled, 
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover, 
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:active {
+            color: #6c757d !important; /* Pasif buton rengi */
+        }
+        
+        /* 9. Tablo Kenarlıkları */
+        table.dataTable.no-footer {
+            border-bottom: 1px solid #495057 !important;
+        }
+        
+        /* 10. Linkler (Düzenle | Sil) */
+        table.dataTable tbody tr a {
+            color: #61dafb !important; /* Açık mavi link rengi (okunabilirlik için) */
+            text-decoration: none;
+        }
+        table.dataTable tbody tr a:hover {
+            text-decoration: underline;
+            color: #fff !important;
         }
     </style>
     <script>includeLatestJQuery("bigbluebutton");</script>
@@ -100,7 +180,6 @@
 
 <div id="bbb_rooms_template" style="display:none"><!--
 <input type="button" id="bbb_create_meeting_link" title="${D}{bbb_create_meeting_tooltip}" value="${D}{bbb_create_meeting_label}" />
-<input type="text" class="search" placeholder="${D}{bbb_search}">
 <table id="bbb_meeting_table" class="listHier">
     <thead>
         <tr>
