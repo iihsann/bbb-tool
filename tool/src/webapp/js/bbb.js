@@ -790,7 +790,7 @@ meetings.addParticipantRow = function (_selType, _id, _title, _moderator) {
         var row = jQuery(
             '<tr id="' + trId + '" class="' + trRowClass + '" style="display:none">' +
             '<td>' +
-            '<a href="#" title="' + bbb_remove + '" onclick="jQuery(this).parent().parent().remove();return false"><img src="/library/image/silk/cross.png" alt="X" style="vertical-align:middle"/></a>&nbsp;' +
+            '<a href="#" title="' + bbb_remove + '" onclick="jQuery(this).parent().parent().remove();return false"><img src="/bbb-tool/images/cross.png" alt="X" style="vertical-align:middle"/></a>&nbsp;' +
             selectionTitle +
             '</td>' +
             '<td>' +

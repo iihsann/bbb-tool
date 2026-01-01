@@ -136,6 +136,16 @@
             text-decoration: underline;
             color: #fff !important;
         }
+        /* Her hücrenin altına ince gri çizgi ekle */
+        table.dataTable tbody td {
+            border-bottom: 1px solid #4e555b !important; /* Çizgi Rengi */
+            border-top: 1px solid #4e555b !important;    /* Çizgi Rengi */
+        }
+
+        /* Tablonun en dış çerçevesini belirginleştir (Opsiyonel) */
+        table.dataTable {
+            border: 1px solid #4e555b !important;
+        }
     </style>
     <script>includeLatestJQuery("bigbluebutton");</script>
     <script type="text/javascript" src="/library/js/trimpath-template-latest.js"></script>
