@@ -45,9 +45,7 @@
     <link rel="stylesheet" type="text/css" href="/bbb-tool/lib/jquery.datepick.package-3.7.5/redmond.datepick.css" />
     <link  rel="stylesheet" href="/bbb-tool/css/jquery.dataTables.min.css">
     <style>
-        /* =========================================
-          1. GENEL YAPI DÜZELTMELERİ (HER ZAMAN GEÇERLİ)
-          ========================================= */
+        /* --- Sayfa Sayısı Selectbox ı için --- */
         .dataTables_length select {
             padding: 4px 24px 4px 8px !important;
             width: auto !important;
@@ -58,92 +56,95 @@
             border: 1px solid #ccc !important;
             border-radius: 4px;
             background-color: #fff;
-            line-height: 1.5 !important;
-            color: #333; /* Açık modda yazı rengi */
-        }
-        .dataTables_filter input {
-            margin-left: 5px !important;
-            border: 1px solid #ccc !important;
-            border-radius: 4px;
-            padding: 4px !important;
-            color: #333;
         }
 
-        /* =========================================
-          2. KOYU MOD STİLLERİ (SADECE DARK MODE AKTİFKEN)
-          Javascript 'dark-mode-on' sınıfını ekleyince çalışır.
-          ========================================= */
-        
-        /* Genel Arka Plan ve Yazı Rengi */
-        body.dark-mode-on, 
-        body.dark-mode-on .portletBody {
-            background-color: #212529 !important; /* Ana zemin */
-            color: #e9ecef !important;
+        /* --- YENİ KOYU TEMA KODLARI --- */
+
+        /* 1. Tablo Satırları (Genel) */
+        table.dataTable tbody tr {
+            background-color: #343a40 !important; /* Koyu Gri Arka Plan */
+            color: #e9ecef !important;            /* Açık Renk Yazı */
         }
 
-        /* Tablo Satırları (Normal) */
-        body.dark-mode-on table.dataTable tbody tr {
-            background-color: #343a40 !important;
-            color: #e9ecef !important;
+        /* 2. Tek/Çift Satır Ayrımı (Striped Rows) */
+        table.dataTable.stripe tbody tr.odd, 
+        table.dataTable.display tbody tr.odd {
+            background-color: #2c3034 !important; /* Biraz daha koyu gri */
         }
 
-        /* Tek/Çift Satır Ayrımı (Zebra) */
-        body.dark-mode-on table.dataTable.stripe tbody tr.odd, 
-        body.dark-mode-on table.dataTable.display tbody tr.odd {
-            background-color: #2c3034 !important;
-        }
-
-        /* Mouse ile üzerine gelince (Hover) */
-        body.dark-mode-on table.dataTable.display tbody tr:hover {
-            background-color: #495057 !important;
+        /* 3. Fare Üzerine Gelince (Hover Effect) */
+        table.dataTable.display tbody tr:hover {
+            background-color: #495057 !important; /* Hover rengi */
             cursor: pointer;
         }
+        
+        /* 4. Seçili Satır Varsa (Sorting sırasında) */
+        table.dataTable.display tbody tr.odd > .sorting_1, 
+        table.dataTable.order-column.stripe tbody tr.odd > .sorting_1 {
+            background-color: #282c30 !important;
+        }
+        table.dataTable.display tbody tr.even > .sorting_1, 
+        table.dataTable.order-column.stripe tbody tr.even > .sorting_1 {
+            background-color: #30363b !important;
+        }
 
-        /* Tablo Başlıkları (Header) */
-        body.dark-mode-on table.dataTable thead th,
-        body.dark-mode-on table.dataTable thead td {
-            background-color: #1a1d20 !important; /* Daha koyu başlık */
-            color: #fff !important;
+        /* 5. Tablo Başlığı (Header) */
+        table.dataTable thead th,
+        table.dataTable thead td {
+            background-color: #212529 !important; /* Başlık arka planı */
+            color: #fff !important;                /* Başlık yazısı */
             border-bottom: 1px solid #495057 !important;
         }
 
-        /* Tablo Alt Bilgi (Footer) */
-        body.dark-mode-on table.dataTable tfoot th,
-        body.dark-mode-on table.dataTable tfoot td {
-            background-color: #1a1d20 !important;
+        /* 6. Alt Bilgi (Footer) */
+        table.dataTable tfoot th,
+        table.dataTable tfoot td {
+            background-color: #212529 !important;
             color: #fff !important;
             border-top: 1px solid #495057 !important;
         }
 
-        /* Input ve Select Kutuları (Koyu Modda) */
-        body.dark-mode-on .dataTables_wrapper .dataTables_filter input,
-        body.dark-mode-on .dataTables_wrapper .dataTables_length select {
+        /* 7. Arama Kutusu ve Sayfalama Seçimi (Input & Select) */
+        .dataTables_wrapper .dataTables_filter input,
+        .dataTables_wrapper .dataTables_length select {
             background-color: #343a40 !important;
             color: #fff !important;
             border: 1px solid #6c757d !important;
         }
         
-        /* Sayfalama Butonları */
-        body.dark-mode-on .dataTables_wrapper .dataTables_paginate .paginate_button {
-            color: #fff !important;
+        /* 8. Sayfalama Butonları (Pagination) */
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            color: #fff !important; /* Buton yazı rengi */
         }
-        body.dark-mode-on .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
-            color: #6c757d !important;
-        }
-
-        /* Satır Çizgileri */
-        body.dark-mode-on table.dataTable tbody td {
-            border-bottom: 1px solid #4e555b !important;
-            border-top: 1px solid #4e555b !important;
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled, 
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover, 
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:active {
+            color: #6c757d !important; /* Pasif buton rengi */
         }
         
-        /* Link Renkleri (Mavi) */
-        body.dark-mode-on table.dataTable tbody tr a {
-            color: #61dafb !important;
+        /* 9. Tablo Kenarlıkları */
+        table.dataTable.no-footer {
+            border-bottom: 1px solid #495057 !important;
         }
-        body.dark-mode-on table.dataTable tbody tr a:hover {
-            color: #fff !important;
+        
+        /* 10. Linkler (Düzenle | Sil) */
+        table.dataTable tbody tr a {
+            color: #61dafb !important; /* Açık mavi link rengi (okunabilirlik için) */
+            text-decoration: none;
+        }
+        table.dataTable tbody tr a:hover {
             text-decoration: underline;
+            color: #fff !important;
+        }
+        /* Her hücrenin altına ince gri çizgi ekle */
+        table.dataTable tbody td {
+            border-bottom: 1px solid #4e555b !important; /* Çizgi Rengi */
+            border-top: 1px solid #4e555b !important;    /* Çizgi Rengi */
+        }
+
+        /* Tablonun en dış çerçevesini belirginleştir (Opsiyonel) */
+        table.dataTable {
+            border: 1px solid #4e555b !important;
         }
     </style>
     <script>includeLatestJQuery("bigbluebutton");</script>
@@ -693,33 +694,6 @@
 <script type="text/javascript" src="/bbb-tool/js/bbb.js"></script>
 
 </div> <!-- /portletBody -->
-<script type="text/javascript">
-    jQuery(document).ready(function($) {
-        function checkDarkMode() {
-            var isDark = false;
-            // 1. Tarayıcı Kontrolü
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                isDark = true;
-            }
-            // 2. Sakai Ana Sayfa Kontrolü
-            try {
-                if (window.parent && window.parent.document && $(window.parent.document.body).hasClass('Mrphs-sakai-dark')) {
-                    isDark = true;
-                }
-            } catch(e) {}
 
-            if (isDark) {
-                $('body').addClass('dark-mode-on');
-            } else {
-                $('body').removeClass('dark-mode-on');
-            }
-        }
-        checkDarkMode();
-        // Tablo değiştiğinde tekrar kontrol et
-        $(document).on('draw.dt', function() {
-            checkDarkMode();
-        });
-    });
-</script>
 </body>
 </html>
