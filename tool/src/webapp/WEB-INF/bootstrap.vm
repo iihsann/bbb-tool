@@ -707,11 +707,6 @@
 </div>
 
 <script type="text/javascript" src="/bbb-tool/js/bbb.js"></script>
-
-</div> <!-- /portletBody -->
-
-
-</body>
 <script type="text/javascript">
     jQuery(document).ready(function($) {
         
@@ -722,13 +717,11 @@
                 var startInput = $('#startDate2');
                 var endInput = $('#endDate2');
                 
-                // Sadece yeni toplantıysa (değer boşsa veya UTC formatındaysa)
-                // Mevcut değer "2026-01-02T..." gibi bir şeyse, bu ISO'dur ama UTC olabilir.
-                // Biz her halükarda kullanıcının o anki yerel saatini basacağız.
+                // Sadece kutular varsa ve (boşsa veya sunucudan UTC 'T' formatında geldiyse)
                 if (startInput.length) {
                     var now = new Date();
                     
-                    // Format: YYYY-MM-DDTHH:mm (datetime-local için zorunlu)
+                    // Format: YYYY-MM-DDTHH:mm (datetime-local için zorunlu ISO formatı)
                     var year = now.getFullYear();
                     var month = String(now.getMonth() + 1).padStart(2, '0');
                     var day = String(now.getDate()).padStart(2, '0');
@@ -737,54 +730,52 @@
                     
                     var localIsoStr = year + "-" + month + "-" + day + "T" + hours + ":" + minutes;
                     
-                    startInput.val(localIsoStr);
-                    // Bitiş tarihi: Başlangıç ile aynı veya 1 saat sonrası (İsteğe bağlı)
-                    endInput.val(localIsoStr);
+                    // Eğer kutu boşsa veya içinde 'T' varsa (UTC ise) yerel saati bas
+                    // (Kullanıcı zaten elle değiştirdiyse dokunmayalım diye kontrol ekleyebiliriz ama 
+                    // yeni açılışta her zaman günceli basmak daha güvenli)
+                    if (!startInput.val() || startInput.val().indexOf('T') !== -1) {
+                        startInput.val(localIsoStr);
+                        endInput.val(localIsoStr);
+                    }
                 }
             }, 300); // Formun açılmasını bekle
         });
 
-        // 2. KAYDETMEDE: FORMAT HATASINI DÜZELT (Dot/Iso Fix)
-        // "Kaydet" butonuna basıldığı an devreye girer
+        // 2. KAYDETMEDE: FORMATI DÜZELT (T -> Boşluk, - -> /)
+        // Bu işlem 'getTime' hatasını kesin olarak çözer.
         $(document).on('mousedown touchstart', '#bbb_save', function() {
             var $startInput = $('#startDate2');
             var $endInput = $('#endDate2');
 
-            // Yardımcı Fonksiyon: ISO (T içeren) formatı Slash'lı formata (dd/mm/yyyy HH:mm) çevir
-            // Çünkü bbb_utils.js ISO formatını veya Noktalı formatı sevmiyor.
-            function convertToSlashFormat(val) {
-                if (!val) return val;
-                
-                // Eğer format 2026-01-02T14:00 ise
-                if (val.indexOf('T') !== -1) {
-                    var parts = val.split('T'); // [2026-01-02, 14:00]
-                    var dParts = parts[0].split('-'); // [2026, 01, 02]
-                    // Hedef: 02/01/2026 14:00
-                    return dParts[2] + '/' + dParts[1] + '/' + dParts[0] + ' ' + parts[1];
+            // Format Düzeltici Fonksiyon
+            // Girdi: "2026-01-02T14:30" (ISO)
+            // Çıktı: "2026/01/02 14:30" (Legacy Safe)
+            function fixFormatForLegacyJS($input) {
+                if ($input.length && $input.val()) {
+                    var val = $input.val();
+
+                    // Input tipini 'text' yap (Zorunlu, yoksa format değişmez)
+                    $input.attr('type', 'text');
+
+                    // 1. "T" harfini Boşluk yap
+                    // 2. "-" işaretlerini "/" yap
+                    // 3. "." işaretlerini "/" yap (Eğer varsa)
+                    var fixedVal = val.replace('T', ' ').replace(/-/g, '/').replace(/\./g, '/');
+                    
+                    $input.val(fixedVal);
+                    // console.log("Format Düzeltildi: " + val + " -> " + fixedVal);
                 }
-                
-                // Eğer format 02.01.2026 ise (Noktalı)
-                if (val.indexOf('.') !== -1) {
-                    return val.replace(/\./g, '/');
-                }
-                
-                return val;
             }
 
-            if ($startInput.length) {
-                // Önce input tipini 'text' yapıyoruz ki formatı serbestçe değiştirebilelim
-                $startInput.attr('type', 'text');
-                var newVal = convertToSlashFormat($startInput.val());
-                $startInput.val(newVal);
-            }
-
-            if ($endInput.length) {
-                $endInput.attr('type', 'text');
-                var newVal = convertToSlashFormat($endInput.val());
-                $endInput.val(newVal);
-            }
+            fixFormatForLegacyJS($startInput);
+            fixFormatForLegacyJS($endInput);
         });
-  });
+    });
 </script>
+
+</div> <!-- /portletBody -->
+
+
+</body>
 
 </html>
