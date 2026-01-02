@@ -717,58 +717,87 @@
                 var startInput = $('#startDate2');
                 var endInput = $('#endDate2');
                 
-                // Sadece kutular varsa ve (boşsa veya sunucudan UTC 'T' formatında geldiyse)
                 if (startInput.length) {
                     var now = new Date();
                     
-                    // Format: YYYY-MM-DDTHH:mm (datetime-local için zorunlu ISO formatı)
                     var year = now.getFullYear();
                     var month = String(now.getMonth() + 1).padStart(2, '0');
                     var day = String(now.getDate()).padStart(2, '0');
                     var hours = String(now.getHours()).padStart(2, '0');
                     var minutes = String(now.getMinutes()).padStart(2, '0');
                     
+                    // Datetime-local için ISO formatı (YYYY-MM-DDTHH:mm)
                     var localIsoStr = year + "-" + month + "-" + day + "T" + hours + ":" + minutes;
                     
                     // Eğer kutu boşsa veya içinde 'T' varsa (UTC ise) yerel saati bas
-                    // (Kullanıcı zaten elle değiştirdiyse dokunmayalım diye kontrol ekleyebiliriz ama 
-                    // yeni açılışta her zaman günceli basmak daha güvenli)
                     if (!startInput.val() || startInput.val().indexOf('T') !== -1) {
                         startInput.val(localIsoStr);
                         endInput.val(localIsoStr);
                     }
                 }
-            }, 300); // Formun açılmasını bekle
+            }, 300); 
         });
 
-        // 2. KAYDETMEDE: FORMATI DÜZELT (T -> Boşluk, - -> /)
-        // Bu işlem 'getTime' hatasını kesin olarak çözer.
-        $(document).on('mousedown touchstart', '#bbb_save', function() {
+        // 2. KAYDETMEDE: FORMATI KESİN OLARAK DÜZELT
+        // 'mousedown' olayını kullanıyoruz ki 'click' (submit) olayından önce çalışsın.
+        $(document).on('mousedown', '#bbb_save', function() {
             var $startInput = $('#startDate2');
             var $endInput = $('#endDate2');
 
-            // Format Düzeltici Fonksiyon
-            // Girdi: "2026-01-02T14:30" (ISO)
-            // Çıktı: "2026/01/02 14:30" (Legacy Safe)
-            function fixFormatForLegacyJS($input) {
+            function convertToLegacyFormat($input) {
                 if ($input.length && $input.val()) {
                     var val = $input.val();
 
-                    // Input tipini 'text' yap (Zorunlu, yoksa format değişmez)
-                    $input.attr('type', 'text');
+                    // Eğer değer zaten düzgünse (Slash içeriyorsa) dokunma
+                    if (val.indexOf('/') !== -1 && val.indexOf('T') === -1) return;
 
-                    // 1. "T" harfini Boşluk yap
-                    // 2. "-" işaretlerini "/" yap
-                    // 3. "." işaretlerini "/" yap (Eğer varsa)
-                    var fixedVal = val.replace('T', ' ').replace(/-/g, '/').replace(/\./g, '/');
+                    // Değeri alıp parçalayalım (ISO veya Noktalı olabilir)
+                    // Örnek: "2026-01-02T14:30"
+                    var datePart = "";
+                    var timePart = "";
+
+                    if (val.indexOf('T') !== -1) {
+                        var parts = val.split('T');
+                        datePart = parts[0]; // 2026-01-02
+                        timePart = parts[1]; // 14:30
+                    } else if (val.indexOf(' ') !== -1) {
+                        var parts = val.split(' ');
+                        datePart = parts[0];
+                        timePart = parts[1];
+                    } else {
+                        return; // Tanımsız format
+                    }
+
+                    // Tarihi parçala (Tire veya Nokta ayracına göre)
+                    var y, m, d;
+                    if (datePart.indexOf('-') !== -1) {
+                        var dParts = datePart.split('-');
+                        y = dParts[0]; m = dParts[1]; d = dParts[2];
+                    } else if (datePart.indexOf('.') !== -1) {
+                        var dParts = datePart.split('.');
+                        d = dParts[0]; m = dParts[1]; y = dParts[2];
+                    }
+
+                    // Hedef Format: "YYYY/MM/DD HH:mm" (Legacy JS bunu sever)
+                    // Veya "DD/MM/YYYY" tercih ediliyorsa: d + '/' + m + '/' + y
+                    // bbb_utils genelde YYYY/MM/DD veya DD/MM/YYYY'yi slash olduğu sürece kabul eder.
+                    // Biz garanti olsun diye YYYY/MM/DD yapalım:
+                    var legacyFormat = y + '/' + m + '/' + d + ' ' + timePart;
+
+                    // ÖNCE TİPİ DEĞİŞTİR (datetime-local -> text)
+                    // Bu çok önemli, yoksa geçersiz format uyarısı verir ve değeri temizler.
+                    $input.get(0).type = 'text';
+                    $input.attr('type', 'text');
                     
-                    $input.val(fixedVal);
-                    // console.log("Format Düzeltildi: " + val + " -> " + fixedVal);
+                    // Sonra değeri ata
+                    $input.val(legacyFormat);
+                    
+                    console.log("Format Dönüştürüldü: " + legacyFormat);
                 }
             }
 
-            fixFormatForLegacyJS($startInput);
-            fixFormatForLegacyJS($endInput);
+            convertToLegacyFormat($startInput);
+            convertToLegacyFormat($endInput);
         });
     });
 </script>
