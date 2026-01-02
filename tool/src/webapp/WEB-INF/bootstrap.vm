@@ -708,6 +708,31 @@
 <script type="text/javascript" src="/bbb-tool/js/bbb.js"></script>
 
 </div> <!-- /portletBody -->
+<script type="text/javascript">
+    jQuery(document).ready(function($) {
+        
+        // Kaydet butonunu (ID: bbb_save) yakalıyoruz
+        // 'mousedown' kullanıyoruz ki 'click' olayından önce çalışsın
+        $(document).on('mousedown touchstart', '#bbb_save', function() {
+            
+            var $startInput = $('#startDate2');
+            var $endInput = $('#endDate2');
 
+            // Başlangıç Tarihi varsa ve içinde nokta varsa -> Slash'a çevir
+            if ($startInput.length && $startInput.val().indexOf('.') !== -1) {
+                var fixedStart = $startInput.val().replace(/\./g, '/'); // Tüm noktaları / yap
+                $startInput.val(fixedStart);
+                console.log("Tarih formatı düzeltildi (Start): " + fixedStart);
+            }
+
+            // Bitiş Tarihi varsa ve içinde nokta varsa -> Slash'a çevir
+            if ($endInput.length && $endInput.val().indexOf('.') !== -1) {
+                var fixedEnd = $endInput.val().replace(/\./g, '/'); // Tüm noktaları / yap
+                $endInput.val(fixedEnd);
+                console.log("Tarih formatı düzeltildi (End): " + fixedEnd);
+            }
+        });
+    });
+</script>
 </body>
 </html>

@@ -164,6 +164,7 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
     //     }
     // }
 
+    
     public Object getEntity(EntityReference ref) {
 
         log.debug("getEntity(" + ref.getId() + ")");
@@ -171,17 +172,16 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
         String id = ref.getId();
         
         // ============================================================
-        // YENİ TOPLANTI MANTIĞI (Create Meeting)
+        // YENİ TOPLANTI OLUŞTURMA (Create Meeting)
         // ============================================================
         if (id == null || "".equals(id)) {
             BBBMeeting meeting = new BBBMeeting();
 
-            // 1. Varsayılan olarak Türkiye saatini (Europe/Istanbul) ayarla
-            // Konteyner ne derse desin, biz İstanbul saati istiyoruz.
-            TimeZone timeZone = TimeZone.getTimeZone("Europe/Istanbul");
+            // 1. Hedef Zaman Dilimini Belirle (Varsayılan: Istanbul)
+            TimeZone targetZone = TimeZone.getTimeZone("Europe/Istanbul");
 
             try {
-                // 2. Eğer kullanıcı Sakai "Tercihler" menüsünden başka bir saat seçmişse ona saygı duy
+                // Kullanıcının Sakai Tercihlerine bak
                 User user = userDirectoryService.getCurrentUser();
                 if (user != null) {
                     PreferencesService prefsService = (PreferencesService) ComponentManager.get(PreferencesService.class);
@@ -190,9 +190,8 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
                         if (prefs != null) {
                             ResourceProperties props = prefs.getProperties(TimeService.APPLICATION_ID);
                             String userTzId = props.getProperty(TimeService.TIMEZONE_KEY);
-                            
                             if (userTzId != null && !userTzId.isEmpty()) {
-                                timeZone = TimeZone.getTimeZone(userTzId);
+                                targetZone = TimeZone.getTimeZone(userTzId);
                             }
                         }
                     }
@@ -201,13 +200,24 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
                 log.warn("Kullanıcı zaman dilimi alınamadı, varsayılan (Istanbul) kullanılıyor.", e);
             }
 
-            // 3. Takvimi ayarlanan zaman dilimiyle oluştur
-            Calendar cal = Calendar.getInstance(timeZone);
+            // 2. Şu anki zamanı al
+            Date now = new Date();
 
-            // Başlangıç: Şu an
-            meeting.setStartDate(cal.getTime());
+            // 3. JSON Serializer UTC bastığı için, aradaki farkı (Offset) hesapla ve ekle.
+            // Örnek: TRT (+3 saat) için offset 10800000 ms'dir.
+            // Biz şu anki zamana bu farkı eklersek, UTC'ye çevrildiğinde bizim yerel saatimiz gibi görünür.
+            int offset = targetZone.getOffset(now.getTime());
+            
+            // "Görsel" Tarihi Oluştur (Gerçek saat + Offset)
+            Date visualStartDate = new Date(now.getTime() + offset);
 
-            // Bitiş: 1 saat sonrası
+            // Başlangıç tarihini ata
+            meeting.setStartDate(visualStartDate);
+
+            // Bitiş tarihini ata (Başlangıç + 1 Saat)
+            // Not: Bitiş için de aynı görsel mantığı koruyoruz.
+            Calendar cal = Calendar.getInstance(); 
+            cal.setTime(visualStartDate);
             cal.add(Calendar.HOUR_OF_DAY, 1);
             meeting.setEndDate(cal.getTime());
 
@@ -215,7 +225,6 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
         }
         // ============================================================
 
-        // Mevcut toplantı getirme mantığı (Buraya dokunmuyoruz)
         try {
             BBBMeeting meeting = meetingManager.getMeeting(id);
 
@@ -223,6 +232,7 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
                 throw new EntityNotFoundException("Meeting not found", ref.getReference());
             }
 
+            // for security reasons, clear passwords and meeting token
             meeting.setAttendeePassword(null);
             meeting.setModeratorPassword(null);
 
