@@ -30,6 +30,7 @@ import java.util.Random;
 
 import java.util.Calendar;
 import java.util.TimeZone;
+import java.util.Date;
 import org.sakaiproject.component.cover.ComponentManager;
 import org.sakaiproject.user.api.PreferencesService;
 import org.sakaiproject.time.api.TimeService;
