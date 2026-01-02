@@ -147,24 +147,161 @@
     }
 
     // Create a json representation of the meeting and post it to new on the bbb-tool provider.
+    // meetings.utils.addUpdateMeeting = function () {
+
+    //     // Consolidate date + time fields.
+    //     let startMillis = 0;
+    //     let endMillis = 0;
+    //     if ($('#startDate1').prop('checked')) {
+    //         const date = $('#startDate2').datepicker('getDate');
+    //         startMillis = date.getTime();
+    //         $('#startDate').val(startMillis);
+    //     } else {
+    //         $('#startDate').removeAttr('name');
+    //         $('#startDate').val(null);
+    //         $('#addToCalendar').removeAttr('checked');
+    //     }
+    //     if ($('#endDate1').attr('checked')) {
+    //         const date = $('#endDate2').datepicker('getDate');
+    //         endMillis = date.getTime();
+    //         $('#endDate').val(endMillis);
+    //     } else {
+    //         $('#endDate').removeAttr('name');
+    //         $('#endDate').val(null);
+    //     }
+
+    //     // Validation.
+    //     meetings.utils.hideMessage();
+    //     var errors = false;
+
+    //     // Validate title field.
+    //     var meetingTitle = $('#bbb_meeting_name_field').val().replace(/^\s+/, '').replace(/\s+$/, '');
+    //     if (meetingTitle == '') {
+    //         meetings.utils.showMessage(bbb_err_no_title, 'warning');
+    //         errors = true;
+    //     }
+
+    //     // Validate participants list.
+    //     if ($('#selContainer tbody tr').length == 0) {
+    //         meetings.utils.showMessage(bbb_err_no_participants, 'warning');
+    //         errors = true;
+    //     }
+
+    //     // Validate date fields.
+    //     if ($('#startDate1').prop('checked') && $('#endDate1').prop('checked')) {
+    //         if (endMillis == startMillis) {
+    //             meetings.utils.showMessage(bbb_err_startdate_equals_enddate, 'warning');
+    //             errors = true;
+    //         } else if (endMillis < startMillis) {
+    //             meetings.utils.showMessage(bbb_err_startdate_after_enddate, 'warning');
+    //             errors = true;
+    //         }
+    //     }
+
+    //     // Get description/welcome msg from CKEditor.
+    //     meetings.utils.updateFromInlineCKEditor('bbb_welcome_message_textarea');
+
+    //     // Validate description length.
+    //     var maxLength = meetings.settings.config.addUpdateFormParameters.descriptionMaxLength;
+    //     var descriptionLength = $('#bbb_welcome_message_textarea').val().length;
+    //     if (descriptionLength > maxLength) {
+    //         meetings.utils.showMessage(bbb_err_meeting_description_too_long(maxLength, descriptionLength), 'warning');
+    //         meetings.utils.makeInlineCKEditor('bbb_welcome_message_textarea', 'BBB', '480', '200');
+    //         errors = true;
+    //     }
+
+    //     if (errors) return false;
+
+    //     $('.bbb_site_member,.bbb_site_member_role').removeAttr('disabled');
+
+    //     // Submit.
+    //     var isNew = $("#isNew").val() == true || $("#isNew").val() == 'true';
+    //     var actionUrl = $("#bbb_add_update_form").attr('action');
+    //     var meetingId = $("#meetingId").val();
+    //     jQuery.ajax({
+    //         url: actionUrl,
+    //         type: 'POST',
+    //         dataType: 'text',
+    //         data: $("#bbb_add_update_form").serializeArray(),
+    //         beforeSend: function (xmlHttpRequest) {
+    //             meetings.utils.hideMessage();
+    //             $('#bbb_save,#bbb_cancel').attr('disabled', 'disabled');
+    //             meetings.utils.showAjaxIndicator('#bbb_addUpdate_ajaxInd');
+    //         },
+    //         success: function (returnedMeetingId) {
+    //             var _meetingId = returnedMeetingId ? returnedMeetingId : meetingId;
+    //             var meeting = meetings.utils.getMeeting(_meetingId);
+    //             meetings.currentMeetings.addUpdateMeeting(meeting);
+    //             meetings.utils.hideAjaxIndicator('#bbb_addUpdate_ajaxInd');
+    //             meetings.switchState('currentMeetings');
+    //         },
+    //         error: function (xmlHttpRequest, status, error) {
+    //             meetings.utils.hideAjaxIndicator('#bbb_addUpdate_ajaxInd');
+    //             $('#bbb_save,#bbb_cancel').removeAttr('disabled');
+    //             if (isNew) {
+    //                 meetings.utils.handleError(bbb_err_create_meeting, xmlHttpRequest.status, xmlHttpRequest.statusText);
+    //             } else {
+    //                 meetings.utils.handleError(bbb_err_update_meeting, xmlHttpRequest.status, xmlHttpRequest.statusText);
+    //             }
+    //         }
+    //     });
+    // };
+
+    // Create a json representation of the meeting and post it to new on the bbb-tool provider.
     meetings.utils.addUpdateMeeting = function () {
 
         // Consolidate date + time fields.
         let startMillis = 0;
         let endMillis = 0;
+
+        // Helper function to parse date input
+        function parseDateInput(inputId) {
+            let val = $(inputId).val();
+            if (!val) return null;
+
+            // Handle datetime-local format (YYYY-MM-DDTHH:mm) or (YYYY/MM/DD HH:mm)
+            // Replace 'T' with space and '-' with '/' for cross-browser compatibility if needed
+            // But standard Date constructor handles ISO format well.
+            // If it's DD.MM.YYYY HH:mm format (Turkish locale), convert it.
+            if (val.indexOf('.') > -1) {
+                 // Convert DD.MM.YYYY to YYYY/MM/DD
+                 let parts = val.split(' ');
+                 let dateParts = parts[0].split('.');
+                 val = dateParts[2] + '/' + dateParts[1] + '/' + dateParts[0] + ' ' + parts[1];
+            }
+            
+            let date = new Date(val);
+            return isNaN(date.getTime()) ? null : date;
+        }
+
         if ($('#startDate1').prop('checked')) {
-            const date = $('#startDate2').datepicker('getDate');
-            startMillis = date.getTime();
-            $('#startDate').val(startMillis);
+            // Try getting date from datepicker if initialized, otherwise parse value directly
+            let date = $('#startDate2').datepicker('getDate');
+            if (!date) {
+                 date = parseDateInput('#startDate2');
+            }
+            
+            if (date) {
+                startMillis = date.getTime();
+                $('#startDate').val(startMillis);
+            }
         } else {
             $('#startDate').removeAttr('name');
             $('#startDate').val(null);
             $('#addToCalendar').removeAttr('checked');
         }
+
         if ($('#endDate1').attr('checked')) {
-            const date = $('#endDate2').datepicker('getDate');
-            endMillis = date.getTime();
-            $('#endDate').val(endMillis);
+             // Try getting date from datepicker if initialized, otherwise parse value directly
+            let date = $('#endDate2').datepicker('getDate');
+            if (!date) {
+                 date = parseDateInput('#endDate2');
+            }
+
+            if (date) {
+                endMillis = date.getTime();
+                $('#endDate').val(endMillis);
+            }
         } else {
             $('#endDate').removeAttr('name');
             $('#endDate').val(null);

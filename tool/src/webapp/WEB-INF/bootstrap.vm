@@ -716,75 +716,18 @@
         // ---------------------------------------------------------
         $(document).on('click', '#bbb_create_meeting_link', function() {
             setTimeout(function() {
-                var $startInput = $('#startDate2');
-                var $endInput = $('#endDate2');
-                
-                if ($startInput.length) {
+                var $start = $('#startDate2');
+                var $end = $('#endDate2');
+                // Sadece kutular boşsa veya "T" harfi varsa (UTC formatı) yerel saati bas
+                if ($start.length && (!$start.val() || $start.val().indexOf('T') !== -1)) {
                     var now = new Date();
-                    
-                    // Format: YYYY-MM-DDTHH:mm (datetime-local standardı)
-                    var year = now.getFullYear();
-                    var month = String(now.getMonth() + 1).padStart(2, '0');
-                    var day = String(now.getDate()).padStart(2, '0');
-                    var hours = String(now.getHours()).padStart(2, '0');
-                    var minutes = String(now.getMinutes()).padStart(2, '0');
-                    
-                    var localIsoStr = year + "-" + month + "-" + day + "T" + hours + ":" + minutes;
-                    
-                    // Kutu boşsa veya 'T' içeriyorsa (UTC formatındaysa) yerel saati bas
-                    if (!$startInput.val() || $startInput.val().indexOf('T') !== -1) {
-                        $startInput.val(localIsoStr);
-                        $endInput.val(localIsoStr);
-                    }
+                    // YYYY-MM-DDTHH:mm formatı oluştur (Yerel Saat)
+                    var localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+                    $start.val(localIso);
+                    $end.val(localIso);
                 }
-            }, 300); // Pencerenin açılmasını bekle
+            }, 300);
         });
-
-        // ---------------------------------------------------------
-        // 2. KAYDETME FORMATI DÜZELTMESİ (Capture Phase - En Önce Çalışır)
-        // ---------------------------------------------------------
-        var saveBtn = document.getElementById('bbb_save');
-        
-        if (saveBtn) {
-            // 'true' parametresi çok önemli: Olayı yakalama (Capture) aşamasında dinle.
-            // Bu sayede bbb_utils.js veya jQuery eventlerinden ÖNCE biz çalışırız.
-            saveBtn.addEventListener('click', function(e) {
-                
-                var startEl = document.getElementById('startDate2');
-                var endEl = document.getElementById('endDate2');
-
-                // Inputları düzelten çekirdek fonksiyon
-                function fixInput(el) {
-                    if (!el || !el.value) return;
-
-                    // 1. Önce input tipini zorla 'text' yap.
-                    // datetime-local tipi '/' karakterini kabul etmez ve değeri siler.
-                    // Bu yüzden text'e çevirmek ZORUNDAYIZ.
-                    el.type = 'text'; 
-                    el.setAttribute('type', 'text');
-
-                    var val = el.value;
-
-                    // 2. Format Temizliği
-                    // T harfini boşluk yap
-                    val = val.replace('T', ' ');
-                    // Tüm tireleri (-) slash (/) yap
-                    val = val.replace(/-/g, '/');
-                    // Tüm noktaları (.) slash (/) yap
-                    val = val.replace(/\./g, '/');
-
-                    // 3. Değeri güncelle
-                    el.value = val;
-                    
-                    // Konsola bilgi bas (Debug için)
-                    console.log("BBB Fix: Format '" + val + "' olarak düzeltildi.");
-                }
-
-                fixInput(startEl);
-                fixInput(endEl);
-
-            }, true); // <--- TRUE: Capture Phase (Burası kritik)
-        }
     });
 </script>
 </div> <!-- /portletBody -->
