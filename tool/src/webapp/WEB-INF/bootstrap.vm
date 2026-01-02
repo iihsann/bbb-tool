@@ -708,6 +708,10 @@
 
 <script type="text/javascript" src="/bbb-tool/js/bbb.js"></script>
 
+</div> <!-- /portletBody -->
+
+
+</body>
 <script type="text/javascript">
     jQuery(document).ready(function($) {
         
@@ -782,8 +786,5 @@
         });
   });
 </script>
-</div> <!-- /portletBody -->
 
-
-</body>
 </html>
