@@ -28,6 +28,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 
+import java.util.Calendar;
+import java.util.TimeZone;
+import org.sakaiproject.component.cover.ComponentManager;
+import org.sakaiproject.user.api.PreferencesService;
+import org.sakaiproject.time.api.TimeService;
+import org.sakaiproject.user.api.Preferences;
+
+
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.codec.binary.Base64;
@@ -127,15 +135,87 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
         return BBBMeetingManager.ENTITY_PREFIX;
     }
 
+    // public Object getEntity(EntityReference ref) {
+
+    //     log.debug("getEntity(" + ref.getId() + ")");
+
+    //     String id = ref.getId();
+    //     if (id == null || "".equals(id)) {
+    //         return new BBBMeeting();
+    //     }
+
+    //     try {
+    //         BBBMeeting meeting = meetingManager.getMeeting(id);
+
+    //         if (meeting == null) {
+    //             throw new EntityNotFoundException("Meeting not found", ref.getReference());
+    //         }
+
+    //         // for security reasons, clear passwords and meeting token
+    //         meeting.setAttendeePassword(null);
+    //         meeting.setModeratorPassword(null);
+
+    //         return meeting;
+
+    //     } catch (SecurityException se) {
+    //         throw new EntityException(se.getMessage(), ref.getReference(), 400);
+    //     } catch (Exception e) {
+    //         throw new EntityException(e.getMessage(), ref.getReference(), 400);
+    //     }
+    // }
+
     public Object getEntity(EntityReference ref) {
 
         log.debug("getEntity(" + ref.getId() + ")");
 
         String id = ref.getId();
+        
+        // ============================================================
+        // YENİ TOPLANTI MANTIĞI (Create Meeting)
+        // ============================================================
         if (id == null || "".equals(id)) {
-            return new BBBMeeting();
-        }
+            BBBMeeting meeting = new BBBMeeting();
 
+            // 1. Varsayılan olarak Türkiye saatini (Europe/Istanbul) ayarla
+            // Konteyner ne derse desin, biz İstanbul saati istiyoruz.
+            TimeZone timeZone = TimeZone.getTimeZone("Europe/Istanbul");
+
+            try {
+                // 2. Eğer kullanıcı Sakai "Tercihler" menüsünden başka bir saat seçmişse ona saygı duy
+                User user = userDirectoryService.getCurrentUser();
+                if (user != null) {
+                    PreferencesService prefsService = (PreferencesService) ComponentManager.get(PreferencesService.class);
+                    if (prefsService != null) {
+                        Preferences prefs = prefsService.getPreferences(user.getId());
+                        if (prefs != null) {
+                            ResourceProperties props = prefs.getProperties(TimeService.APPLICATION_ID);
+                            String userTzId = props.getProperty(TimeService.TIMEZONE_KEY);
+                            
+                            if (userTzId != null && !userTzId.isEmpty()) {
+                                timeZone = TimeZone.getTimeZone(userTzId);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Kullanıcı zaman dilimi alınamadı, varsayılan (Istanbul) kullanılıyor.", e);
+            }
+
+            // 3. Takvimi ayarlanan zaman dilimiyle oluştur
+            Calendar cal = Calendar.getInstance(timeZone);
+
+            // Başlangıç: Şu an
+            meeting.setStartDate(cal.getTime());
+
+            // Bitiş: 1 saat sonrası
+            cal.add(Calendar.HOUR_OF_DAY, 1);
+            meeting.setEndDate(cal.getTime());
+
+            return meeting;
+        }
+        // ============================================================
+
+        // Mevcut toplantı getirme mantığı (Buraya dokunmuyoruz)
         try {
             BBBMeeting meeting = meetingManager.getMeeting(id);
 
@@ -143,7 +223,6 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
                 throw new EntityNotFoundException("Meeting not found", ref.getReference());
             }
 
-            // for security reasons, clear passwords and meeting token
             meeting.setAttendeePassword(null);
             meeting.setModeratorPassword(null);
 
