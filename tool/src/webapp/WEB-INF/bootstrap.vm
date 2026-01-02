@@ -708,100 +708,85 @@
 
 <script type="text/javascript" src="/bbb-tool/js/bbb.js"></script>
 <script type="text/javascript">
+    // DOM hazır olduğunda çalış
     jQuery(document).ready(function($) {
         
-        // 1. AÇILIŞTA: SAAT FARKINI DÜZELT (UTC+3)
-        // Toplantı Oluştur butonuna basılınca çalışır
+        // ---------------------------------------------------------
+        // 1. AÇILIŞTA SAAT AYARI (UTC+3 Düzeltmesi)
+        // ---------------------------------------------------------
         $(document).on('click', '#bbb_create_meeting_link', function() {
             setTimeout(function() {
-                var startInput = $('#startDate2');
-                var endInput = $('#endDate2');
+                var $startInput = $('#startDate2');
+                var $endInput = $('#endDate2');
                 
-                if (startInput.length) {
+                if ($startInput.length) {
                     var now = new Date();
                     
+                    // Format: YYYY-MM-DDTHH:mm (datetime-local standardı)
                     var year = now.getFullYear();
                     var month = String(now.getMonth() + 1).padStart(2, '0');
                     var day = String(now.getDate()).padStart(2, '0');
                     var hours = String(now.getHours()).padStart(2, '0');
                     var minutes = String(now.getMinutes()).padStart(2, '0');
                     
-                    // Datetime-local için ISO formatı (YYYY-MM-DDTHH:mm)
                     var localIsoStr = year + "-" + month + "-" + day + "T" + hours + ":" + minutes;
                     
-                    // Eğer kutu boşsa veya içinde 'T' varsa (UTC ise) yerel saati bas
-                    if (!startInput.val() || startInput.val().indexOf('T') !== -1) {
-                        startInput.val(localIsoStr);
-                        endInput.val(localIsoStr);
+                    // Kutu boşsa veya 'T' içeriyorsa (UTC formatındaysa) yerel saati bas
+                    if (!$startInput.val() || $startInput.val().indexOf('T') !== -1) {
+                        $startInput.val(localIsoStr);
+                        $endInput.val(localIsoStr);
                     }
                 }
-            }, 300); 
+            }, 300); // Pencerenin açılmasını bekle
         });
 
-        // 2. KAYDETMEDE: FORMATI KESİN OLARAK DÜZELT
-        // 'mousedown' olayını kullanıyoruz ki 'click' (submit) olayından önce çalışsın.
-        $(document).on('mousedown', '#bbb_save', function() {
-            var $startInput = $('#startDate2');
-            var $endInput = $('#endDate2');
+        // ---------------------------------------------------------
+        // 2. KAYDETME FORMATI DÜZELTMESİ (Capture Phase - En Önce Çalışır)
+        // ---------------------------------------------------------
+        var saveBtn = document.getElementById('bbb_save');
+        
+        if (saveBtn) {
+            // 'true' parametresi çok önemli: Olayı yakalama (Capture) aşamasında dinle.
+            // Bu sayede bbb_utils.js veya jQuery eventlerinden ÖNCE biz çalışırız.
+            saveBtn.addEventListener('click', function(e) {
+                
+                var startEl = document.getElementById('startDate2');
+                var endEl = document.getElementById('endDate2');
 
-            function convertToLegacyFormat($input) {
-                if ($input.length && $input.val()) {
-                    var val = $input.val();
+                // Inputları düzelten çekirdek fonksiyon
+                function fixInput(el) {
+                    if (!el || !el.value) return;
 
-                    // Eğer değer zaten düzgünse (Slash içeriyorsa) dokunma
-                    if (val.indexOf('/') !== -1 && val.indexOf('T') === -1) return;
+                    // 1. Önce input tipini zorla 'text' yap.
+                    // datetime-local tipi '/' karakterini kabul etmez ve değeri siler.
+                    // Bu yüzden text'e çevirmek ZORUNDAYIZ.
+                    el.type = 'text'; 
+                    el.setAttribute('type', 'text');
 
-                    // Değeri alıp parçalayalım (ISO veya Noktalı olabilir)
-                    // Örnek: "2026-01-02T14:30"
-                    var datePart = "";
-                    var timePart = "";
+                    var val = el.value;
 
-                    if (val.indexOf('T') !== -1) {
-                        var parts = val.split('T');
-                        datePart = parts[0]; // 2026-01-02
-                        timePart = parts[1]; // 14:30
-                    } else if (val.indexOf(' ') !== -1) {
-                        var parts = val.split(' ');
-                        datePart = parts[0];
-                        timePart = parts[1];
-                    } else {
-                        return; // Tanımsız format
-                    }
+                    // 2. Format Temizliği
+                    // T harfini boşluk yap
+                    val = val.replace('T', ' ');
+                    // Tüm tireleri (-) slash (/) yap
+                    val = val.replace(/-/g, '/');
+                    // Tüm noktaları (.) slash (/) yap
+                    val = val.replace(/\./g, '/');
 
-                    // Tarihi parçala (Tire veya Nokta ayracına göre)
-                    var y, m, d;
-                    if (datePart.indexOf('-') !== -1) {
-                        var dParts = datePart.split('-');
-                        y = dParts[0]; m = dParts[1]; d = dParts[2];
-                    } else if (datePart.indexOf('.') !== -1) {
-                        var dParts = datePart.split('.');
-                        d = dParts[0]; m = dParts[1]; y = dParts[2];
-                    }
-
-                    // Hedef Format: "YYYY/MM/DD HH:mm" (Legacy JS bunu sever)
-                    // Veya "DD/MM/YYYY" tercih ediliyorsa: d + '/' + m + '/' + y
-                    // bbb_utils genelde YYYY/MM/DD veya DD/MM/YYYY'yi slash olduğu sürece kabul eder.
-                    // Biz garanti olsun diye YYYY/MM/DD yapalım:
-                    var legacyFormat = y + '/' + m + '/' + d + ' ' + timePart;
-
-                    // ÖNCE TİPİ DEĞİŞTİR (datetime-local -> text)
-                    // Bu çok önemli, yoksa geçersiz format uyarısı verir ve değeri temizler.
-                    $input.get(0).type = 'text';
-                    $input.attr('type', 'text');
+                    // 3. Değeri güncelle
+                    el.value = val;
                     
-                    // Sonra değeri ata
-                    $input.val(legacyFormat);
-                    
-                    console.log("Format Dönüştürüldü: " + legacyFormat);
+                    // Konsola bilgi bas (Debug için)
+                    console.log("BBB Fix: Format '" + val + "' olarak düzeltildi.");
                 }
-            }
 
-            convertToLegacyFormat($startInput);
-            convertToLegacyFormat($endInput);
-        });
+                fixInput(startEl);
+                fixInput(endEl);
+
+            }, true); // <--- TRUE: Capture Phase (Burası kritik)
+        }
     });
 </script>
-
 </div> <!-- /portletBody -->
 
 
