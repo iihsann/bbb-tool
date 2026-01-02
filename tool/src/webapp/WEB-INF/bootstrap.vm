@@ -27,6 +27,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
     <script type="text/javascript">
         var d = new Date();
+        var browserTimezoneOffset = (d.getTimezoneOffset() * 60 * 1000 * -1).toString();
         var meetings = {
             startupArgs: {
                 language: '${language}',
@@ -707,32 +708,82 @@
 
 <script type="text/javascript" src="/bbb-tool/js/bbb.js"></script>
 
-</div> <!-- /portletBody -->
 <script type="text/javascript">
     jQuery(document).ready(function($) {
         
-        // Kaydet butonunu (ID: bbb_save) yakalıyoruz
-        // 'mousedown' kullanıyoruz ki 'click' olayından önce çalışsın
+        // 1. AÇILIŞTA: SAAT FARKINI DÜZELT (UTC+3)
+        // Toplantı Oluştur butonuna basılınca çalışır
+        $(document).on('click', '#bbb_create_meeting_link', function() {
+            setTimeout(function() {
+                var startInput = $('#startDate2');
+                var endInput = $('#endDate2');
+                
+                // Sadece yeni toplantıysa (değer boşsa veya UTC formatındaysa)
+                // Mevcut değer "2026-01-02T..." gibi bir şeyse, bu ISO'dur ama UTC olabilir.
+                // Biz her halükarda kullanıcının o anki yerel saatini basacağız.
+                if (startInput.length) {
+                    var now = new Date();
+                    
+                    // Format: YYYY-MM-DDTHH:mm (datetime-local için zorunlu)
+                    var year = now.getFullYear();
+                    var month = String(now.getMonth() + 1).padStart(2, '0');
+                    var day = String(now.getDate()).padStart(2, '0');
+                    var hours = String(now.getHours()).padStart(2, '0');
+                    var minutes = String(now.getMinutes()).padStart(2, '0');
+                    
+                    var localIsoStr = year + "-" + month + "-" + day + "T" + hours + ":" + minutes;
+                    
+                    startInput.val(localIsoStr);
+                    // Bitiş tarihi: Başlangıç ile aynı veya 1 saat sonrası (İsteğe bağlı)
+                    endInput.val(localIsoStr);
+                }
+            }, 300); // Formun açılmasını bekle
+        });
+
+        // 2. KAYDETMEDE: FORMAT HATASINI DÜZELT (Dot/Iso Fix)
+        // "Kaydet" butonuna basıldığı an devreye girer
         $(document).on('mousedown touchstart', '#bbb_save', function() {
-            
             var $startInput = $('#startDate2');
             var $endInput = $('#endDate2');
 
-            // Başlangıç Tarihi varsa ve içinde nokta varsa -> Slash'a çevir
-            if ($startInput.length && $startInput.val().indexOf('.') !== -1) {
-                var fixedStart = $startInput.val().replace(/\./g, '/'); // Tüm noktaları / yap
-                $startInput.val(fixedStart);
-                console.log("Tarih formatı düzeltildi (Start): " + fixedStart);
+            // Yardımcı Fonksiyon: ISO (T içeren) formatı Slash'lı formata (dd/mm/yyyy HH:mm) çevir
+            // Çünkü bbb_utils.js ISO formatını veya Noktalı formatı sevmiyor.
+            function convertToSlashFormat(val) {
+                if (!val) return val;
+                
+                // Eğer format 2026-01-02T14:00 ise
+                if (val.indexOf('T') !== -1) {
+                    var parts = val.split('T'); // [2026-01-02, 14:00]
+                    var dParts = parts[0].split('-'); // [2026, 01, 02]
+                    // Hedef: 02/01/2026 14:00
+                    return dParts[2] + '/' + dParts[1] + '/' + dParts[0] + ' ' + parts[1];
+                }
+                
+                // Eğer format 02.01.2026 ise (Noktalı)
+                if (val.indexOf('.') !== -1) {
+                    return val.replace(/\./g, '/');
+                }
+                
+                return val;
             }
 
-            // Bitiş Tarihi varsa ve içinde nokta varsa -> Slash'a çevir
-            if ($endInput.length && $endInput.val().indexOf('.') !== -1) {
-                var fixedEnd = $endInput.val().replace(/\./g, '/'); // Tüm noktaları / yap
-                $endInput.val(fixedEnd);
-                console.log("Tarih formatı düzeltildi (End): " + fixedEnd);
+            if ($startInput.length) {
+                // Önce input tipini 'text' yapıyoruz ki formatı serbestçe değiştirebilelim
+                $startInput.attr('type', 'text');
+                var newVal = convertToSlashFormat($startInput.val());
+                $startInput.val(newVal);
+            }
+
+            if ($endInput.length) {
+                $endInput.attr('type', 'text');
+                var newVal = convertToSlashFormat($endInput.val());
+                $endInput.val(newVal);
             }
         });
-    });
+  });
 </script>
+</div> <!-- /portletBody -->
+
+
 </body>
 </html>

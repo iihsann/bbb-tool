@@ -28,14 +28,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 
-import java.util.Calendar;
-import java.util.TimeZone;
-import java.util.Date;
-import org.sakaiproject.component.cover.ComponentManager;
-import org.sakaiproject.user.api.PreferencesService;
-import org.sakaiproject.time.api.TimeService;
-import org.sakaiproject.user.api.Preferences;
-
 
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.fileupload.FileItem;
@@ -136,95 +128,14 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
         return BBBMeetingManager.ENTITY_PREFIX;
     }
 
-    // public Object getEntity(EntityReference ref) {
-
-    //     log.debug("getEntity(" + ref.getId() + ")");
-
-    //     String id = ref.getId();
-    //     if (id == null || "".equals(id)) {
-    //         return new BBBMeeting();
-    //     }
-
-    //     try {
-    //         BBBMeeting meeting = meetingManager.getMeeting(id);
-
-    //         if (meeting == null) {
-    //             throw new EntityNotFoundException("Meeting not found", ref.getReference());
-    //         }
-
-    //         // for security reasons, clear passwords and meeting token
-    //         meeting.setAttendeePassword(null);
-    //         meeting.setModeratorPassword(null);
-
-    //         return meeting;
-
-    //     } catch (SecurityException se) {
-    //         throw new EntityException(se.getMessage(), ref.getReference(), 400);
-    //     } catch (Exception e) {
-    //         throw new EntityException(e.getMessage(), ref.getReference(), 400);
-    //     }
-    // }
-
-    
     public Object getEntity(EntityReference ref) {
 
         log.debug("getEntity(" + ref.getId() + ")");
 
         String id = ref.getId();
-        
-        // ============================================================
-        // YENİ TOPLANTI OLUŞTURMA (Create Meeting)
-        // ============================================================
         if (id == null || "".equals(id)) {
-            BBBMeeting meeting = new BBBMeeting();
-
-            // 1. Hedef Zaman Dilimini Belirle (Varsayılan: Istanbul)
-            TimeZone targetZone = TimeZone.getTimeZone("Europe/Istanbul");
-
-            try {
-                // Kullanıcının Sakai Tercihlerine bak
-                User user = userDirectoryService.getCurrentUser();
-                if (user != null) {
-                    PreferencesService prefsService = (PreferencesService) ComponentManager.get(PreferencesService.class);
-                    if (prefsService != null) {
-                        Preferences prefs = prefsService.getPreferences(user.getId());
-                        if (prefs != null) {
-                            ResourceProperties props = prefs.getProperties(TimeService.APPLICATION_ID);
-                            String userTzId = props.getProperty(TimeService.TIMEZONE_KEY);
-                            if (userTzId != null && !userTzId.isEmpty()) {
-                                targetZone = TimeZone.getTimeZone(userTzId);
-                            }
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("Kullanıcı zaman dilimi alınamadı, varsayılan (Istanbul) kullanılıyor.", e);
-            }
-
-            // 2. Şu anki zamanı al
-            Date now = new Date();
-
-            // 3. JSON Serializer UTC bastığı için, aradaki farkı (Offset) hesapla ve ekle.
-            // Örnek: TRT (+3 saat) için offset 10800000 ms'dir.
-            // Biz şu anki zamana bu farkı eklersek, UTC'ye çevrildiğinde bizim yerel saatimiz gibi görünür.
-            int offset = targetZone.getOffset(now.getTime());
-            
-            // "Görsel" Tarihi Oluştur (Gerçek saat + Offset)
-            Date visualStartDate = new Date(now.getTime() + offset);
-
-            // Başlangıç tarihini ata
-            meeting.setStartDate(visualStartDate);
-
-            // Bitiş tarihini ata (Başlangıç + 1 Saat)
-            // Not: Bitiş için de aynı görsel mantığı koruyoruz.
-            Calendar cal = Calendar.getInstance(); 
-            cal.setTime(visualStartDate);
-            cal.add(Calendar.HOUR_OF_DAY, 1);
-            meeting.setEndDate(cal.getTime());
-
-            return meeting;
+            return new BBBMeeting();
         }
-        // ============================================================
 
         try {
             BBBMeeting meeting = meetingManager.getMeeting(id);
