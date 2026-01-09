@@ -213,7 +213,7 @@
             <th class="bbb_startDate">${D}{bbb_th_startdate}</th>
             <th class="bbb_endDate">${D}{bbb_th_enddate}</th>
             <th class="owner">${D}{bbb_th_owner}</th>
-            <th class="Button">${D}{typeof bbb_button != 'undefined' ? bbb_button : 'Actions'}}</th>
+            <th class="Button">${D}{typeof bbb_button != 'undefined' ? bbb_button : 'Actions'}</th>
         </tr>
     </thead>
     <tbody>
