@@ -25,6 +25,12 @@
       </dependency>
 
       <dependency>
+        <groupId>org.sakaiproject.bbb</groupId>
+        <artifactId>bbb-impl</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.sakaiproject.entitybroker</groupId>
         <artifactId>entitybroker-utils</artifactId>
       </dependency>
@@ -42,10 +48,6 @@
         <groupId>org.springframework</groupId>
         <artifactId>spring-beans</artifactId>
       </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-webmvc</artifactId>
-        </dependency>
 
       <!-- Kernel -->
       <dependency>
@@ -67,6 +69,10 @@
         <artifactId>javax.servlet-api</artifactId>
       </dependency>
       <dependency>
+        <groupId>log4j</groupId>
+        <artifactId>log4j</artifactId>
+      </dependency>
+      <dependency>
         <groupId>org.apache.velocity</groupId>
         <artifactId>velocity</artifactId>
         <version>${sakai.velocity.version}</version>
@@ -86,12 +92,9 @@
         <artifactId>lombok</artifactId>
       </dependency>
       <dependency>
-        <groupId>commons-codec</groupId>
-        <artifactId>commons-codec</artifactId>
-      </dependency>
-      <dependency>
         <groupId>commons-fileupload</groupId>
         <artifactId>commons-fileupload</artifactId>
+        <version>${sakai.commons.fileupload.version}</version>
       </dependency>
       <!-- JWT -->
       <dependency>
@@ -180,7 +183,7 @@
               <artifactItems>
                 <artifactItem>
                   <groupId>org.sakaiproject.bbb</groupId>
-                  <artifactId>bbb-api</artifactId>
+                  <artifactId>bbb-bundle</artifactId>
                   <type>jar</type>
                   <overWrite>false</overWrite>
                   <outputDirectory>${project.build.directory}/${project.build.finalName}/bundle</outputDirectory>

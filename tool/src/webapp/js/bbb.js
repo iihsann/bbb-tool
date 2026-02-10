@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2010 onwards - The Sakai Foundation
  *
- * Licensed under the Educational Community License, Version 2.0 (the "License");
+ * Licensed under the Educational Community License, vVersion 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+/* Deu BID V1.8.3 */
+
+
 /* Stuff that we always expect to be setup */
 meetings.currentMeetings = [];
 meetings.currentRecordings = Array();
@@ -22,6 +25,13 @@ meetings.checkAllMeetingAvailabilityId = null;
 meetings.checkRecordingAvailabilityId = null;
 meetings.refreshRecordingListId = null;
 meetings.errorLog = new Object();
+meetings.browserTimezoneOffset = 0;
+
+function grepDomain(string) {  
+      var index=string.split("/", 3).join("/").length;
+    return string.substring(0, index);
+    }
+
 
 (function ($) {
 
@@ -35,11 +45,11 @@ meetings.errorLog = new Object();
     // load I18N files.
     jQuery.i18n.properties({
         name: 'ToolMessages',
-        path: '/bbb-tool/bundle/org/sakaiproject/bbb/bundle/',
+        path: '/bbb-tool/bundle/',
         language: arg.language,
         mode: 'vars'
     });
-
+    
     // Load language for datepick.
     var lang = arg['language'].split("_");
     if (lang[0] != "en") {
@@ -72,6 +82,9 @@ meetings.errorLog = new Object();
 
         meetings.currentUser = meetings.settings.currentUser;
         meetings.userPerms = new BBBPermissions(meetings.currentUser.permissions);
+        meetings.startupArgs.timezoneoffset = arg.timezoneoffset;
+        var d = new Date();
+        meetings.browserTimezoneOffset = d.getTimezoneOffset() * 60 * 1000 * -1;
 
         // Now switch into the requested state.
         if (meetings.currentUser != null) {
@@ -132,22 +145,36 @@ meetings.switchState = function (state, arg) {
         } else {
             $('#bbb_end_meetings_link').parent().parent().hide();
         }
+        
 
         // Show meeting list.
         if (meetings.userPerms.bbbViewMeetingList) {
-            // Set meeting list.
-            meetings.setMeetingList();
 
-            meetings.currentMeetings.forEach(m => {
+           // Set meeting list.
+            if(meetings.currentMeetings.length==0) meetings.setMeetingList(); //optimizasyon için tekrar çekme
 
-              m.formattedStartDate = m.startDate ? new Date(m.startDate).toLocaleString(portal.locale, { dateStyle: "short", timeStyle: "short" }) : "";
-              m.formattedEndDate = m.endDate ? new Date(m.endDate).toLocaleString(portal.locale, { dateStyle: "short", timeStyle: "short" }) : "";
-            });
+            meetings.currentMeetings.forEach(m => m.formattedStartDate = m.startDate ? new Date(m.startDate).toLocaleString("tr", { dateStyle: "short", timeStyle: "short" }) : "");
+            meetings.currentMeetings.forEach(m => m.formattedEndDate = m.endDate ? new Date(m.endDate).toLocaleString("tr", { dateStyle: "short", timeStyle: "short" }): "");
 
             // Show meeting list.
             meetings.utils.render('bbb_rooms_template', {
                 'meetings': meetings.currentMeetings,
+                'timezoneoffset': meetings.startupArgs.timezoneoffset
             }, 'bbb_content');
+
+                var $rows = $('#bbb_meeting_table tbody tr');
+/*  Artık Gerek yok
+                for (var i=0;i<$rows.length-1;i++){
+var kayitlar_btn="<div id='show_record' style='display: inline; margin:0; padding:0;'><a href='javascript:;' onclick=\"return meetings.switchState('recordings_meeting',{'meetingId':'"+$rows[i].children[1].getAttribute("id").replace('meeting_status_','')+"'});\" title='Kayıtları görüntülemek için tıklayın'>Kayitlar</a></div>"
+document.getElementsByClassName("itemAction")[i].children[0].innerHTML+=kayitlar_btn
+
+};*/
+
+            // Update meeting list.
+//            meetings.refreshMeetingList();
+
+        //Eski arama kutusu gizleme
+        //document.getElementsByClassName('search')[0].style.visibility = 'hidden';
 
             // Show tool footer message only if site maintainer.
             if (meetings.userPerms.siteUpdate) {
@@ -156,20 +183,17 @@ meetings.switchState = function (state, arg) {
                     'bbbTool': bbbToolVersion
                 }, 'bbb_footer');
             }
-
+                document.getElementById('bbb_footer').innerHTML="<span><br><br><br><p id='bbb_footer_info' align='center'><font size='1'>DEU BID DEUZEM TEKNIK EKIBI V1.8.4</font></p></span"
             $('#bbb_create_meeting_link').bind('click', function (e) {
                 return meetings.switchState('addUpdateMeeting');
             });
 
             var $rows = $('#bbb_meeting_table tbody tr');
-            $('.search').keyup(function () {
-                var val = $.trim($(this).val()).replace(/ +/g, ' ').toLowerCase();
 
-                $rows.show().filter(function () {
-                    var text = $(this).text().replace(/\s+/g, ' ').toLowerCase();
-                    return !~text.indexOf(val);
-                }).hide();
-            });
+        // Sayfalandırma (TOPLANTI)
+        $('#bbb_meeting_table').DataTable( { "pagingType": "full_numbers", "order": [[ 2, "desc" ]] } );
+
+        
 
             // Show links if user has appropriate permissions.
             if (meetings.userPerms.bbbCreate) {
@@ -199,31 +223,9 @@ meetings.switchState = function (state, arg) {
                 type: "numeric"
             });
 
-            // Add sorting capabilities.
-            $("#bbb_meeting_table").tablesorter({
-                cssHeader: 'bbb_sortable_table_header',
-                cssAsc: 'bbb_sortable_table_header_sortup',
-                cssDesc: 'bbb_sortable_table_header_sortdown',
-                headers: {
-                    0: {
-                        sorter: 'text'
-                    },
-                    2: {
-                        sorter: 'bbbDateTimeFormat'
-                    },
-                    3: {
-                        sorter: 'bbbDateTimeFormat'
-                    }
-                },
-                // Sort DESC status:
-                // sortList: (bbbCurrentMeetings.length > 0) ? [[0,1]] : []
-                sortList: (meetings.currentMeetings.length > 0) ? [
-                    [0, 0]
-                ] : []
-            });
-
-            if (meetings.settings.config.autorefreshInterval.meetings > 0)
-                meetings.checkAllMeetingAvailabilityId = setInterval("meetings.utils.checkAllMeetingAvailability()", meetings.settings.config.autorefreshInterval.meetings);
+            if (meetings.settings.config.autorefreshInterval.meetings > 0) meetings.checkAllMeetingAvailabilityId =
+                setInterval("meetings.utils.checkAllMeetingAvailability()",
+                meetings.settings.config.autorefreshInterval.meetings);
 
         } else {
             // Warn about lack of permissions.
@@ -242,13 +244,8 @@ meetings.switchState = function (state, arg) {
 
         var isNew = !(arg && arg.meetingId);
         var meeting = isNew ? {} : meetings.utils.getMeeting(arg.meetingId);
-        const showStartDate = isNew ? false : meeting.startDate && meeting.startDate > 0;
-        const showEndDate = isNew ? false : meeting.endDate && meeting.endDate > 0;
         var contextData = {
             'isNew': isNew,
-            'showStartDate': showStartDate,
-            'showEndDate': showEndDate,
-            "canAddCalendar": (isNew && meetings.userPerms.calendarNew) || (!isNew && ( (meeting.ownerId == meetings.currentUser.id && meetings.userPerms.calendarReviseOwn) || (meeting.ownerId != meetings.currentUser.id && meetings.userPerms.calendarReviseAny) )),
             'meeting': meeting,
             'selTypes': meetings.utils.getUserSelectionTypes(),
             'selOptions': meetings.utils.getUserSelectionOptions(),
@@ -276,13 +273,10 @@ meetings.switchState = function (state, arg) {
         $('#startDate1').change(function (e) {
 
             if ($(this).prop('checked')) {
-                $('#startDate2').prop("disabled", false);
-                $('#startDate2 + button').prop("disabled", false);
-                $('#addToCalendar').prop("disabled", false);
+                $('#startDateBox').show();
             } else {
-                $('#startDate2').prop("disabled", true);
-                $('#startDate2 + button').prop("disabled", true);
-                $('#addToCalendar').prop("disabled", true);
+                $('#startDateBox').hide();
+                $('.time-picker').hide();
             }
         });
 
@@ -330,53 +324,54 @@ meetings.switchState = function (state, arg) {
         $('#endDate1').change(function (e) {
 
             if ($(this).prop('checked')) {
-                $('#endDate2').prop("disabled", false);
-                $('#endDate2 + button').prop("disabled", false);
+                $('#endDateBox').show();
             } else {
-                $('#endDate2').prop("disabled", true);
-                $('#endDate2 + button').prop("disabled", true);
+                $('#endDateBox').hide();
+                $('.time-picker').hide();
             }
         });
 
         // Focus on meeting name/title.
         $('#bbb_meeting_name_field').focus();
 
-        // Setup description/welcome msg editor.
-        meetings.utils.makeInlineCKEditor('bbb_welcome_message_textarea', 'BBB', '480', '200');
-
-        let startDate = new Date().toISOString();
-        if (!isNew && meeting.startDate) {
-          startDate = new Date(meeting.startDate).toISOString();
+        // Setup description/welcome msg editor. Test for CKEditor.
+        var descriptionType = meetings.settings.config.addUpdateFormParameters.descriptionType;
+        if (descriptionType == 'ckeditor') {
+            meetings.utils.makeInlineCKEditor('bbb_welcome_message_textarea', 'BBB', '480', '200');
         }
 
-        let endDate = new Date().toISOString();
-        if (!isNew && meeting.endDate) {
-          endDate = new Date(meeting.endDate).toISOString();
+        // Setup dates.
+        var now = new Date();
+        var now_utc = new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds());
+        var now_local = new Date(parseInt(now_utc.getTime()) + parseInt(meetings.startupArgs.timezoneoffset));
+        var now_local_plus_1 = new Date(parseInt(now_utc.getTime()) + parseInt(meetings.startupArgs.timezoneoffset) + 3600000);
+
+        var startDate = (!isNew && meeting.startDate) ? new Date(parseInt(meeting.startDate) - parseInt(meetings.browserTimezoneOffset) + parseInt(meetings.startupArgs.timezoneoffset) + ((new Date()).dst() && !(new Date(parseInt(meeting.startDate) - parseInt(meetings.browserTimezoneOffset) + parseInt(meetings.startupArgs.timezoneoffset))).dst() ? 3600000 : !(new Date()).dst() && (new Date(parseInt(meeting.startDate) - parseInt(meetings.browserTimezoneOffset) + parseInt(meetings.startupArgs.timezoneoffset))).dst() ? (3600000 * -1) : 0)) : now_local;
+        var endDate = (!isNew && meeting.endDate) ? new Date(parseInt(meeting.endDate) - parseInt(meetings.browserTimezoneOffset) + parseInt(meetings.startupArgs.timezoneoffset) + ((new Date()).dst() && !(new Date(parseInt(meeting.endDate) - parseInt(meetings.browserTimezoneOffset) + parseInt(meetings.startupArgs.timezoneoffset))).dst() ? 3600000 : !(new Date()).dst() && (new Date(parseInt(meeting.endDate) - parseInt(meetings.browserTimezoneOffset) + parseInt(meetings.startupArgs.timezoneoffset))).dst() ? (3600000 * -1) : 0)) : now_local_plus_1;
+
+        // Setup time picker.
+        var zeropad = function (num) {
+            return ((num < 10) ? '0' : '') + num;
         }
-
-        localDatePicker({
-            input: '#startDate2',
-            useTime: 1,
-            val: startDate,
-            parseFormat: 'YYYY-MM-DDTHH:mm:ss.SSSZ',
-            ashidden:{
-              iso8601: "startDate"
-            },
+        jQuery('#startTime').val(zeropad(startDate.getHours()) + ':' + zeropad(startDate.getMinutes()));
+        jQuery('#endTime').val(zeropad(endDate.getHours()) + ':' + zeropad(endDate.getMinutes()));
+        jQuery(".time-picker").remove();
+        jQuery("#startTime, #endTime").timePicker({
+            separator: ':'
         });
 
-        $('#startDate2 + button').prop("disabled", !showStartDate);
-
-        localDatePicker({
-            input: '#endDate2',
-            useTime: 1,
-            val: endDate,
-            parseFormat: 'YYYY-MM-DDTHH:mm:ss.SSSZ',
-            ashidden:{
-              iso8601: "endDate"
-            },
+        // Setup date picker.
+        jQuery.datepick.setDefaults({
+            dateFormat: jQuery.datepick.W3C,
+            defaultDate: '+0',
+            showDefault: true,
+            showOn: 'both',
+            buttonImageOnly: true,
+            buttonImage: '/library/calendar/images/calendar/cal.gif'
         });
-
-        $('#endDate2 + button').prop("disabled", !showEndDate);
+        jQuery('#startDate2, #endDate2').datepick();
+        jQuery('#startDate2').datepick('setDate', startDate);
+        jQuery('#endDate2').datepick('setDate', endDate);
 
         // Add meeting participants.
         meetings.addParticipantSelectionToUI(meeting, isNew);
@@ -466,6 +461,7 @@ meetings.switchState = function (state, arg) {
                 }
                 meetings.utils.render('bbb_meeting-info_template', {
                     'meeting': meeting,
+                    'timezoneoffset': meetings.startupArgs.timezoneoffset,
                     'groups': groups
                 }, 'bbb_content');
 
@@ -517,6 +513,11 @@ meetings.switchState = function (state, arg) {
             meetings.switchState('currentMeetings');
         }
     } else if ('recordings' === state) {
+        var r=confirm("Tüm kayıtlar getirilicek, bu durum tarayıcınızda kilitlenmelere yol açabilir. Tüm kayıtları getirmek istediğinize emin misiniz?");
+if (r!=true)
+  {
+    return;
+  }
         $("#bbb_recordings_link").parent().addClass('current');
 
         // Show meeting list.
@@ -524,12 +525,58 @@ meetings.switchState = function (state, arg) {
             // Get recording list.
             meetings.refreshRecordingList();
 
+            // Watch for permissions changes, check meeting dates.
+            for (var i = 0; i < meetings.currentRecordings.length; i++) {
+                meetings.utils.setRecordingPermissionParams(meetings.currentRecordings[i]);
+                 meetings.currentRecordings[i].playback[0]["preview"]=[];
+                var images = [];
+                for (var j = 0; j < meetings.currentRecordings[i].playback.length; j++) {
+                    if (meetings.currentRecordings[i].playback[j].preview && meetings.currentRecordings[i].playback[j].preview.length > images.length) {
+                        images = meetings.currentRecordings[i].playback[j].preview;
+                    }
+                }
+                if (images.length) {
+                    meetings.currentRecordings[i].images = images;
+                }
+            }
+            /* MEETINGS RENDER (OLD)
             meetings.utils.render('bbb_recordings_template', {
                 'recordings': meetings.currentRecordings,
                 'stateFunction': 'recordings'
             }, 'bbb_content');
+            */
+            // Render & Sayfalandır
+            $.when(meetings.utils.render('bbb_recordings_template', {
+                'recordings': meetings.currentRecordings,
+                'stateFunction': 'recordings'
+            }, 'bbb_content')).then($('#bbb_recording_table').DataTable( { "pagingType": "full_numbers", "order": [[ 2, "desc" ]] } ));
+            
+            
+            if (!meetings.userPerms.bbbRecordingDownload  ) {
+            [].forEach.call(document.querySelectorAll('.bbb_download_link'), function (el) {
+              el.style.visibility = 'hidden';
+            });
+            }
+            else {
+            [].forEach.call(document.querySelectorAll('.bbb_download_link'), function (el) {
+              el.style.visibility = '';
+            });
+            }
+            
 
+            if (meetings.userPerms.bbbDeleteAny) {
+            $('#bbb_end_meetings_link').parent().parent().show();
+        } else {
+            $('#bbb_end_meetings_link').parent().parent().hide();
+        }
             var $rows = $('#bbb_recording_table tbody tr');
+var $rows = $('#bbb_meeting_table tbody tr');
+
+                for (var i=0;i<$rows.length-1;i++){
+var kayitlar_btn="<div id='show_record' style='display: inline; margin:0; padding:0;'><a href='javascript:;' onclick=\"return meetings.switchState('recordings_meeting',{'meetingId':'"+$rows[i].children[1].getAttribute("id").replace('meeting_status_','')+"'});\" title='Kayıtları görüntülemek için tıklayın'>Kayitlar</a></div>"
+document.getElementsByClassName("itemAction")[i].children[0].innerHTML+=kayitlar_btn
+
+};
             $('.search').keyup(function () {
                 var val = $.trim($(this).val()).replace(/ +/g, ' ').toLowerCase();
 
@@ -581,6 +628,8 @@ meetings.switchState = function (state, arg) {
                 type: "numeric"
             });
 
+
+		bbb_recordings_template.innerHTML=bbb_recordings_template.innerHTML.replace("bbb_server_url",grepDomain(meetings.currentRecordings[0].playback[0]["url"]))
             // Add sorting capabilities.
             $("#bbb_recording_table").tablesorter({
                 cssHeader: 'bbb_sortable_table_header',
@@ -621,11 +670,39 @@ meetings.switchState = function (state, arg) {
                 // Get meeting list.
                 meetings.refreshRecordingList(arg.meetingId, arg.groupId);
 
+                // Watch for permissions changes, check meeting dates.
+                for (var i = 0; i < meetings.currentRecordings.length; i++) {
+                    meetings.currentRecordings[i].ownerId = "";
+                    meetings.utils.setRecordingPermissionParams(meetings.currentRecordings[i]);
+                    //console.log(grepDomain(meetings.currentRecordings[i].playback[0]["url"]))
+                    var images = [];
+                    for (var j = 0; j < meetings.currentRecordings[i].playback.length; j++) {
+                        if (meetings.currentRecordings[i].playback[j].preview && meetings.currentRecordings[i].playback[j].preview.length > images.length) {
+                            images = meetings.currentRecordings[i].playback[j].preview;
+                        }
+                    }
+                    if (images.length) {
+                        meetings.currentRecordings[i].images = images;
+                    }
+                }
+
+		//bbb_recordings_template.innerHTML=bbb_recordings_template.innerHTML.replace("bbb_server_url",grepDomain(meetings.currentRecordings[0].playback[0]["url"]))
                 meetings.utils.render('bbb_recordings_template', {
                     'recordings': meetings.currentRecordings,
                     'stateFunction': 'recordings_meeting',
                     'meetingId': arg.meetingId
                 }, 'bbb_content');
+                
+                if (!meetings.userPerms.bbbRecordingDownload ) {
+[].forEach.call(document.querySelectorAll('.bbb_download_link'), function (el) {
+  el.style.visibility = 'hidden';
+});
+} 
+else {
+[].forEach.call(document.querySelectorAll('.bbb_download_link'), function (el) {
+  el.style.visibility = '';
+});
+} 
 
                 if ($('a.preview')) {
                     var xOffset = 5;
@@ -914,41 +991,25 @@ meetings.setMeetingList = function () {
     }
 };
 
+meetings.refreshMeetingList = function () {
+//    meetings.utils.getMeetings();
+};
+
 meetings.refreshRecordingList = function (meetingId, groupId) {
+    var getRecordingResponse = (meetingId == null) ? meetings.utils.getSiteRecordingList(meetings.startupArgs.siteId) : meetings.utils.getMeetingRecordingList(meetingId, groupId);
 
-  const getRecordingResponse = (meetingId == null) ? meetings.utils.getSiteRecordingList(meetings.startupArgs.siteId) : meetings.utils.getMeetingRecordingList(meetingId, groupId);
-
-  if (getRecordingResponse.returncode == 'SUCCESS') {
-    meetings.currentRecordings = getRecordingResponse.recordings;
-    meetings.currentRecordings.forEach(r => {
-
-      let length = parseInt(r.endTime) - parseInt(r.startTime);
-      r.formattedDuration = Math.round(length / 60000);
-
-      r.formattedStartTime = r.startTime ? new Date(parseInt(r.startTime)).toLocaleString(portal.locale, { dateStyle: "short", timeStyle: "short" }) : "";
-      r.ownerId = "";
-      meetings.utils.setRecordingPermissionParams(r);
-
-      let images = [];
-      r.playback.forEach(p => {
-        if (p.preview && p.preview.length > images.length) {
-          images = p.preview;
-        }
-      });
-
-      if (images.length) {
-        r.images = images;
-      }
-    });
-  } else {
-    meetings.currentRecordings = [];
-
-    if (getRecordingResponse.messageKey != null) {
-      meetings.utils.showMessage(getRecordingResponse.messageKey + ":" + getRecordingResponse.message, 'warning');
+    if (getRecordingResponse.returncode == 'SUCCESS') {
+        meetings.currentRecordings = getRecordingResponse.recordings;
     } else {
-      meetings.utils.showMessage(bbb_warning_no_server_response, 'warning');
+        //Something went wrong
+        meetings.currentRecordings = new Array();
+
+        if (getRecordingResponse.messageKey != null) {
+            meetings.utils.showMessage(getRecordingResponse.messageKey + ":" + getRecordingResponse.message, 'warning');
+        } else {
+            meetings.utils.showMessage(bbb_warning_no_server_response, 'warning');
+        }
     }
-  }
 };
 
 meetings.sortDropDown = function (dropDownId) {
@@ -958,3 +1019,26 @@ meetings.sortDropDown = function (dropDownId) {
     });
     $(dropDownId).html(groupNames).prepend(defaultGroup);
 };
+
+
+//Eklemeler v1.3
+//Eklemeler
+document.getElementById('bbb_recordings_template').innerHTML=document.getElementById('bbb_recordings_template').innerHTML.replace('meetingInfo','currentMeetings')
+
+function openInNewTab(url) {
+  var win = window.open(url, '_blank');
+  win.focus();
+}
+
+bbb_recordings_template.innerHTML=bbb_recordings_template.innerHTML.replace("<a href=\"${p.url}\" title=\"${viewRecType}\" target=\"_blank\">${recType}</a>", "<button onclick=\"openInNewTab('${p.url}')\">${recType}</button>");
+//bbb_recordings_template.innerHTML=bbb_recordings_template.innerHTML.replace("bbb_server_url",grepDomain(meetings.currentRecordings[i].playback[0]["url"]))
+
+/* DEU BID DEUZEM TEKNIK EKIBI
+ *
+ *   BBB-TOOL REDESIGN
+ *
+ *Date:28.09.2021
+ *Version:1.8.3
+ *Author: Muhammed Sertkaya
+ *
+ */

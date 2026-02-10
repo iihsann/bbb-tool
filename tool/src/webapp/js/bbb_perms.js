@@ -49,6 +49,8 @@ function BBBPermissions(data) {
                 this.bbbRecordingDeleteOwn = true;
             } else if ('bbb.recording.delete.any' === data[i]) {
                 this.bbbRecordingDeleteAny = true;
+            } else if ('bbb.recording.download' === data[i]) {
+                this.bbbRecordingDownload = true;
             } else if ('bbb.recording.extendedformats.own' === data[i]) {
                 this.bbbRecordingExtendedFormatsOwn = true;
             } else if ('bbb.recording.extendedformats.any' === data[i]) {

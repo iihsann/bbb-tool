@@ -27,6 +27,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
     <script type="text/javascript">
         var d = new Date();
+        var browserTimezoneOffset = (d.getTimezoneOffset() * 60 * 1000 * -1).toString();
         var meetings = {
             startupArgs: {
                 language: '${language}',
@@ -43,17 +44,18 @@
     ${sakaiHtmlHead}
     <link rel="stylesheet" type="text/css" href="/bbb-tool/css/bbb.css" />
     <link rel="stylesheet" type="text/css" href="/bbb-tool/lib/jquery.datepick.package-3.7.5/redmond.datepick.css" />
-    <script>includeLatestJQuery("bigbluebutton");</script>
+    <script type="text/javascript" src="/library/webjars/jquery/1.12.4/jquery.min.js"></script>
     <script type="text/javascript" src="/library/js/trimpath-template-latest.js"></script>
     <script type="text/javascript" src="/library/js/jquery/i18n-properties/1.0.9/jquery.i18n.properties-min-1.0.9.js"></script>
     <script type="text/javascript" src="/bbb-tool/lib/jquery.tablesorter.min.js"></script>
-    <!--script type="text/javascript" src="/bbb-tool/lib/jquery.datepick.package-3.7.5/jquery.datepick.pack.js"></script-->
+    <script type="text/javascript" src="/bbb-tool/lib/jquery.datepick.package-3.7.5/jquery.datepick.pack.js"></script>
     <script type="text/javascript" src="/bbb-tool/lib/jquery.browser.min.js"></script>
-    <!--script type="text/javascript" src="/bbb-tool/lib/jquery.timePicker.js"></script-->
+    <script type="text/javascript" src="/bbb-tool/lib/jquery.timePicker.js"></script>
     <script type="text/javascript" src="/bbb-tool/lib/jquery.tipTip.minified.js"></script>
     <script type="text/javascript" src="/bbb-tool/js/bbb_utils.js"></script>
     <script type="text/javascript" src="/bbb-tool/js/bbb_perms.js"></script>
-    <script src="/library/js/lang-datepicker/lang-datepicker.js"></script>
+    <script type="text/javascript" src="/bbb-tool/js/jquery.dataTables.min.js"></script>
+    <link  rel="stylesheet" href="/bbb-tool/css/jquery.dataTables.min.css">
 </head>
 <body>
 
@@ -85,7 +87,6 @@
 
 <div id="bbb_rooms_template" style="display:none"><!--
 <input type="button" id="bbb_create_meeting_link" title="${D}{bbb_create_meeting_tooltip}" value="${D}{bbb_create_meeting_label}" />
-<input type="text" class="search" placeholder="${D}{bbb_search}">
 <table id="bbb_meeting_table" class="listHier">
     <thead>
         <tr>
@@ -94,6 +95,7 @@
             <th class="bbb_startDate">${D}{bbb_th_startdate}</th>
             <th class="bbb_endDate">${D}{bbb_th_enddate}</th>
             <th class="owner">${D}{bbb_th_owner}</th>
+            <th class="Button">${D}{bbb_button}</th>
         </tr>
     </thead>
     <tbody>
@@ -134,12 +136,14 @@
         {var statusText = m.joinable ? (m.joinableMode == 'available'? bbb_status_joinable_available: m.joinableMode == 'inprogress'? bbb_status_joinable_inprogress: m.joinableMode == 'unavailable'? bbb_status_joinable_unavailable: m.joinableMode == 'unreachable'? bbb_status_joinable_unreachable: '' ) : (m.notStarted ? bbb_status_notstarted : bbb_status_finished)}
         <td id="meeting_status_${D}{m.id}" class="${D}{statusClass}">${D}{statusText}</td>
         <td>${D}{m.formattedStartDate}</td>
-        <td>${D}{m.formattedEndDate}</td>
+        <td>${D}{m.endDate ? new Date( parseInt(m.endDate) - parseInt(browserTimezoneOffset) + parseInt(timezoneoffset) + ( (new Date()).dst() && !(new Date( parseInt(m.endDate) - parseInt(browserTimezoneOffset) + parseInt(timezoneoffset))).dst()? 3600000: !(new Date()).dst() && (new Date( parseInt(m.endDate) - parseInt(browserTimezoneOffset) + parseInt(timezoneoffset))).dst()? (3600000 * -1): 0 ) ).toISO8601String() : ''}</td>
         <td>${D}{m.ownerDisplayName}</td>
+        <td><button onclick="return meetings.switchState('recordings_meeting',{'meetingId':'${D}{m.id}'});">${D}{bbb_th_recordingname}</button></td>
       </tr>
     {/if}
 {/for}
       <tr>
+        <td></td>
         <td></td>
         <td></td>
         <td></td>
@@ -159,12 +163,11 @@
 {else}
     <button onclick="meetings.switchState('recordings')" title="${D}{bbb_refresh}"><i class="fa fa-refresh"></i>&nbsp;${D}{bbb_refresh}</button>
 {/if}
-    <input type="text" class="search" id="recSearch" placeholder=${bbb_search}>
     <table id="bbb_recording_table" class="listHier">
         <thead>
             <tr>
                 <th class="bbb_recName">${D}{bbb_th_recordingname}</th>
-                <th class="bbb_recPreview">${D}{bbb_th_recordingpreview}</th>
+              
                 <th class="bbb_recStatus">${D}{bbb_th_status}</th>
                 <th class="bbb_recStartDate">${D}{bbb_th_recordingdate}</th>
                 <th class="bbb_recLinks">${D}{bbb_th_recordings}</th>
@@ -203,19 +206,7 @@
                         </small>
                     </div>
                 </td>
-                <td class="bbb_thumbnails">
-                    <div class="bbb_preview_images">
-                        {if r.images && r.published == 'true'}
-                            {for image in r.images}
-                            <a href="${D}{image.url}" class="preview" target="_blank">
-                                <img src="${D}{image.url}" class="thumbnails" width="44px" height="34px" alt="${D}{image.title}">
-                            </a>
-                            {/for}
-                        {elseif r.images}
-                            ${D}{bbb_recording_thumbnails_hidden}
-                        {/if}
-                    </div>
-                </td>
+                
                 <td>
                   {if r.published == 'true'}
                     ${D}{bbb_recording_status_shown}
@@ -223,19 +214,31 @@
                     ${D}{bbb_recording_status_hidden}
                   {/if}
                 </td>
-                <td class="bbb_startDate">${D}{r.formattedStartTime}</td>
+                <td class="bbb_startDate">${D}{r.startTime ? (new Date(parseInt(r.startTime)).toISO8601String()) + ' ' + r.timezoneOffset: ''}</td>
                 <td>
                   {for p in r.playback}
                     {var recType = bbb_recording_type[p.type] === undefined ? p.type : bbb_recording_type[p.type]}
                     {var viewRecType = bbb_recording_view_tooltip[p.type] === undefined ? p.type : bbb_recording_view_tooltip[p.type]}
                     {if r.published == 'true'}
-                        <a href="${D}{p.url}" title="${D}{viewRecType}" target="_blank">${D}{recType}</a>&nbsp;
+                        <button onclick="openInNewTab('${D}{p.url}')">${D}{bbb_recordings_watch}</button>&nbsp;
+			{if r.canDownload}
+                        <button class="bbb_download_link" id="bbb_download_link"  onclick="openInNewTab('https://scalelitey.deu.edu.tr/download/presentation/${D}{r.recordID}')">${D}{bbb_recordings_download}</button>
+			{/if}
+			&nbsp;
                     {else}
                         ${D}{recType}&nbsp;
                     {/if}
                   {/for}
                 </td>
-                <td>${D}{r.formattedDuration}</td>
+                <td>
+                  {var fLength=false}
+                  {for p in r.playback}
+                    {if !fLength && p.length }
+                      ${D}{p.length}
+                      {var fLength=true}
+                    {/if}
+                  {/for}
+                </td>
             </tr>
           {/if}
         {/for}
@@ -268,7 +271,7 @@
       <tr>
         <td class="bbb_lbl">${D}{bbb_info_description}</td>
         <td>
-            <textarea class="bbb_welcome_message_textarea" id="bbb_welcome_message_textarea" name="properties.welcomeMessage" cols="36" rows="10" style="width: 480px;" wrap="virtual">{if isNew}${D}{bbb_default_welcome_description}{else}${D}{meeting.properties.welcomeMessage}{/if}</textarea>
+            <textarea class="bbb_welcome_message_textarea" id="bbb_welcome_message_textarea" name="props.welcomeMessage" cols="36" rows="10" style="width: 480px;" wrap="virtual">{if isNew}${D}{bbb_default_welcome_description}{else}${D}{meeting.props.welcomeMessage}{/if}</textarea>
         </td>
       </tr>
       {if recordingEnabled}
@@ -386,17 +389,30 @@
       <tr>
         <td class="bbb_lbl">${D}{bbb_availability_startdate}</td>
         <td>
+            {var showStartDate = isNew ? false : meeting.startDate && meeting.startDate > 0}
             <input id="startDate1" type="checkbox" {if showStartDate}checked{/if} />
-            <input id="startDate2" name="startDate2" class="datepicker" value="" {if !showStartDate}disabled{/if}/>
-            <input id="addToCalendar" type="checkbox" name="addToCalendar" checked style="{if !canAddCalendar}display:none;{/if}"/ {if !showStartDate}disabled{/if} />
-            <span style="{if !canAddCalendar}display:none;{/if}">${D}{bbb_availability_addtocal}</span>
+            <span id="startDateBox" style="{if !showStartDate}display:none;{/if}">
+                <input id="startDate2" type="text" class="date-picker-field"/>
+                <input id="startTime" type="text" class="time-picker-field"/>
+                <input id="startDate" name="startDate" type="hidden"/>
+                {if (isNew && meetings.userPerms.calendarNew) || (!isNew && ( (meeting.ownerId == meetings.currentUser.id && meetings.userPerms.calendarReviseOwn) || (meeting.ownerId != meetings.currentUser.id && meetings.userPerms.calendarReviseAny) ))}
+                    {var addToCalendar = isNew ? true : meeting.props.calendarEventId != null}
+                    <input id="addToCalendar" type="checkbox" name="addToCalendar" {if addToCalendar}checked{/if}/>
+                    <span>${D}{bbb_availability_addtocal}</span>
+                {/if}
+            </span>
         </td>
       </tr>
       <tr>
         <td class="bbb_lbl">${D}{bbb_availability_enddate}</td>
         <td>
+            {var showEndDate = isNew ? false : meeting.endDate && meeting.endDate > 0}
             <input id="endDate1" type="checkbox" {if showEndDate}checked{/if} />
-            <input id="endDate2" name="endDate2" class="datepicker" value="" disabled/>
+            <span id="endDateBox" style="{if !showEndDate}display:none;{/if}">
+                <input id="endDate2" type="text" class="date-picker-field"/>
+                <input id="endTime" type="text" class="time-picker-field"/>
+                <input id="endDate" name="endDate" type="hidden"/>
+            </span>
         </td>
       </tr>
     </table>
@@ -444,6 +460,7 @@
             <th>${D}{bbb_permissions_recordings_edit_any}</th>
             <th>${D}{bbb_permissions_recordings_delete_own}</th>
             <th>${D}{bbb_permissions_recordings_delete_any}</th>
+            <th>${D}{bbb_permissions_recordings_download}</th>
             {if recordingformatfilter_enabled}
             <th>${D}{bbb_permissions_recordings_extendedformats_own}</th>
             <th>${D}{bbb_permissions_recordings_extendedformats_any}</th>
@@ -465,6 +482,7 @@
     <td><input type="checkbox" class="bbb_permission_checkbox" {if p.bbb_recording_edit_any}checked="checked"{/if} id="${D}{p.role}:bbb.recording.edit.any"/></td>
     <td><input type="checkbox" class="bbb_permission_checkbox" {if p.bbb_recording_delete_own}checked="checked"{/if} id="${D}{p.role}:bbb.recording.delete.own"/></td>
     <td><input type="checkbox" class="bbb_permission_checkbox" {if p.bbb_recording_delete_any}checked="checked"{/if} id="${D}{p.role}:bbb.recording.delete.any"/></td>
+    <td><input type="checkbox" class="bbb_permission_checkbox" {if p.bbb_recording_download}checked="checked"{/if} id="${D}{p.role}:bbb.recording.download"/></td>
     {if recordingformatfilter_enabled}
     <td><input type="checkbox" class="bbb_permission_checkbox" {if p.bbb_recording_extendedformats_own}checked="checked"{/if} id="${D}{p.role}:bbb.recording.extendedformats.own"/></td>
     <td><input type="checkbox" class="bbb_permission_checkbox" {if p.bbb_recording_extendedformats_any}checked="checked"{/if} id="${D}{p.role}:bbb.recording.extendedformats.any"/></td>
@@ -503,18 +521,18 @@
       </tr>
       <tr>
         <td><h5>${D}{bbb_info_description}</h5></td>
-        <td>${D}{meeting.properties.welcomeMessage}</td>
+        <td>${D}{meeting.props.welcomeMessage}</td>
       </tr>
       {if meeting.startDate}
       <tr>
         <td><h5>${D}{bbb_availability_startdate}</h5></td>
-        <td>${D}{meeting.formattedStartDate}</td>
+        <td>${D}{new Date(parseInt(meeting.startDate) - parseInt(browserTimezoneOffset) + parseInt(timezoneoffset)).toISO8601String()}</td>
       </tr>
       {/if}
       {if meeting.endDate}
       <tr>
         <td><h5>${D}{bbb_availability_enddate}</h5></td>
-        <td>${D}{meeting.formattedEndDate}</td>
+        <td>${D}{new Date(parseInt(meeting.endDate) - parseInt(browserTimezoneOffset) + parseInt(timezoneoffset)).toISO8601String()}</td>
       </tr>
       {/if}
       <tr>
@@ -580,7 +598,6 @@
 </div>
 
 <script type="text/javascript" src="/bbb-tool/js/bbb.js"></script>
-
 </div> <!-- /portletBody -->
 
 </body>
