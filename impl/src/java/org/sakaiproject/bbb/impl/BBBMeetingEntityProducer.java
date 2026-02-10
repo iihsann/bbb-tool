@@ -9,7 +9,7 @@ import java.util.Set;
 import java.util.Stack;
 import javax.annotation.Resource;
 
-import org.sakaiproject.bbb.api.storage.BBBMeeting;
+import org.sakaiproject.bbb.api.BBBMeeting;
 import org.sakaiproject.bbb.api.BBBMeetingManager;
 
 import org.sakaiproject.component.api.ServerConfigurationService;
