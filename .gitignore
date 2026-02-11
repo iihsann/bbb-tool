@@ -10,3 +10,4 @@
 /impl/target*
 /tool/target*
 /assembly*
+/components/bin/*
