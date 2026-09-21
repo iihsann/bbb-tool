@@ -275,10 +275,6 @@
             let date = new Date(val);
             return isNaN(date.getTime()) ? null : date;
         }
-            
-            let date = new Date(val);
-            return isNaN(date.getTime()) ? null : date;
-        }
 
         if ($('#startDate1').prop('checked')) {
             // Try getting date from datepicker if initialized, otherwise parse value directly
