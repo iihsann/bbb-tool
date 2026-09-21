@@ -293,14 +293,14 @@ meetings.switchState = function (state, arg) {
         $('#bbb_meeting_name_field').focus();
         meetings.utils.makeInlineCKEditor('bbb_welcome_message_textarea', 'BBB', '480', '200');
 
-        let startDate = new Date().toISOString();
+        let startDate = new Date();
         if (!isNew && meeting.startDate) {
-          startDate = new Date(meeting.startDate).toISOString();
+          startDate = new Date(meeting.startDate);
         }
 
-        let endDate = new Date().toISOString();
+        let endDate = new Date();
         if (!isNew && meeting.endDate) {
-          endDate = new Date(meeting.endDate).toISOString();
+          endDate = new Date(meeting.endDate);
         }
 
         localDatePicker({
