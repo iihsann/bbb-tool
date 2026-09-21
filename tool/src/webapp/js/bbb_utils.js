@@ -259,16 +259,22 @@
             let val = $(inputId).val();
             if (!val) return null;
 
-            // Handle datetime-local format (YYYY-MM-DDTHH:mm) or (YYYY/MM/DD HH:mm)
-            // Replace 'T' with space and '-' with '/' for cross-browser compatibility if needed
-            // But standard Date constructor handles ISO format well.
-            // If it's DD.MM.YYYY HH:mm format (Turkish locale), convert it.
-            if (val.indexOf('.') > -1) {
-                 // Convert DD.MM.YYYY to YYYY/MM/DD
-                 let parts = val.split(' ');
-                 let dateParts = parts[0].split('.');
-                 val = dateParts[2] + '/' + dateParts[1] + '/' + dateParts[0] + ' ' + parts[1];
+            if (val.indexOf("T") > -1) {
+                let parts = val.split("T");
+                let dateParts = parts[0].split("-");
+                let timeParts = parts[1].split(":");
+                return new Date(dateParts[0], dateParts[1] - 1, dateParts[2], timeParts[0], timeParts[1]);
             }
+
+            if (val.indexOf(".") > -1) {
+                 let parts = val.split(" ");
+                 let dateParts = parts[0].split(".");
+                 val = dateParts[2] + "/" + dateParts[1] + "/" + dateParts[0] + " " + parts[1];
+            }
+            
+            let date = new Date(val);
+            return isNaN(date.getTime()) ? null : date;
+        }
             
             let date = new Date(val);
             return isNaN(date.getTime()) ? null : date;
