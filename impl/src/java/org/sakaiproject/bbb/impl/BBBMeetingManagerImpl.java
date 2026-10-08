@@ -1303,6 +1303,10 @@ public class BBBMeetingManagerImpl implements BBBMeetingManager {
         // 3. ... then go with 'all' selection type
         for (BBBMeetingParticipant p : unprocessed2) {
             if (Participant.SELECTION_ALL.equals(p.getSelectionType())) {
+                // DEU GÜVENLİK KISITLAMASI: 'all' kuralı üzerinden odaya bağlananlar asla moderatör olamaz
+                if (Participant.MODERATOR.equalsIgnoreCase(p.getRole())) {
+                    p.setRole(Participant.ATTENDEE);
+                }
                 return p;
             }
         }

@@ -1344,6 +1344,18 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
             }
 
             if (selectionType != null && selectionId != null && role != null) {
+                // DEU GÜVENLİK KISITLAMASI:
+                // Tüm site üyeleri (all), Student rolü ve öğrenci hesapları oda açılırken moderatör yapılamaz; her zaman katılımcı (attendee) olarak kaydedilir.
+                if (Participant.SELECTION_ALL.equals(selectionType)) {
+                    role = Participant.ATTENDEE;
+                } else if (Participant.SELECTION_ROLE.equals(selectionType) && "Student".equalsIgnoreCase(selectionId)) {
+                    role = Participant.ATTENDEE;
+                } else if (Participant.SELECTION_USER.equals(selectionType)) {
+                    if (selectionId.contains("@ogr.deu.edu.tr") || selectionId.matches("^\\d{9,11}$")) {
+                        role = Participant.ATTENDEE;
+                    }
+                }
+
                 BBBMeetingParticipant p = new BBBMeetingParticipant();
                 p.setSelectionType(selectionType);
                 p.setSelectionId(selectionId);
