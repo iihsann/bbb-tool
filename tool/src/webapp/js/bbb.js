@@ -784,6 +784,32 @@ meetings.addParticipantRow = function (_selType, _id, _title, _moderator) {
     var moderatorSelection = _moderator ? ' selected' : '';
     var attendeeSelection = _moderator ? '' : ' selected';
 
+    // DEU GÜVENLİK KISITLAMASI:
+    // Tüm site üyeleri (all), Student rolü ve öğrenci hesapları oda açılırken moderatör yapılamaz.
+    var allowModerator = true;
+    if (_selType === 'all') {
+        allowModerator = false;
+    } else if (_selType === 'role' && (_id === 'Student' || _id === 'student')) {
+        allowModerator = false;
+    } else if (_selType === 'user') {
+        var userText = (_title || '') + ' ' + (_id || '');
+        if (userText.indexOf('@ogr.deu.edu.tr') !== -1 || /^\d{9,11}$/.test(_id)) {
+            allowModerator = false;
+        }
+    }
+
+    var roleSelectHtml = '';
+    if (allowModerator) {
+        roleSelectHtml = '<select name="' + selectionId + '">' +
+            '<option value="attendee"' + attendeeSelection + '>' + bbb_role_atendee + '</option>' +
+            '<option value="moderator"' + moderatorSelection + '>' + bbb_role_moderator + '</option>' +
+            '</select>';
+    } else {
+        roleSelectHtml = '<select name="' + selectionId + '" title="Öğrenciler ve tüm site üyeleri oda açılırken moderatör yapılamaz">' +
+            '<option value="attendee" selected>' + bbb_role_atendee + '</option>' +
+            '</select>';
+    }
+
     var trId = 'row-' + _selType + '-' + btoa(_id).slice(0, -2);
     var trRowClass = 'row-' + _selType;
     if (jQuery('#' + trId).length == 0) {
@@ -795,7 +821,7 @@ meetings.addParticipantRow = function (_selType, _id, _title, _moderator) {
             '</td>' +
             '<td>' +
             '<span class="bbb_role_selection_as">' + bbb_as_role + '</span>' +
-            '<select name="' + selectionId + '"><option value="attendee"' + attendeeSelection + '>' + bbb_role_atendee + '</option><option value="moderator"' + moderatorSelection + '>' + bbb_role_moderator + '</option></select>' +
+            roleSelectHtml +
             '<input type="hidden" name="' + selectionType + '" value="' + _id + '"/>' +
             '</td>' +
             '</tr>');
