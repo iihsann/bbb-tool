@@ -861,8 +861,27 @@
     // Check if a user is already logged on a meeting.
     meetings.utils.isUserInMeeting = function (userName, meeting) {
 
+        if (!meeting || !meeting.attendees) {
+            return false;
+        }
+
+        var currentUserId = (meetings.currentUser && meetings.currentUser.id) ? String(meetings.currentUser.id) : null;
+        var currentEid = (meetings.currentUser && meetings.currentUser.eid) ? String(meetings.currentUser.eid) : null;
+        var currentDisplayName = (meetings.currentUser && meetings.currentUser.displayName) ? meetings.currentUser.displayName : null;
+
         for (var p = 0; p < meeting.attendees.length; p++) {
-            if (meetings.currentUser.displayName === meeting.attendees[p].fullName) {
+            var att = meeting.attendees[p];
+            if (!att) continue;
+
+            // 1. Öncelik: Benzersiz kullanıcı kimliği (eid veya id) üzerinden kontrol
+            // BigBlueButton, Sakai'den bbb.recordingstats ayarı ile aktarılan userID değerini taşır.
+            if (att.userID) {
+                var attUserId = String(att.userID);
+                if ((currentEid && attUserId === currentEid) || (currentUserId && attUserId === currentUserId)) {
+                    return true;
+                }
+            } else if (currentDisplayName && currentDisplayName === att.fullName) {
+                // 2. Yedek: Eğer BigBlueButton katılımcısında userID bilgisi yoksa ad-soyad ile kontrol et
                 return true;
             }
         }
