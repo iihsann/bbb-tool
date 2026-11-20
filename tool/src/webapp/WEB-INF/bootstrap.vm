@@ -352,7 +352,7 @@
                     {if r.published == 'true'}
                         <button onclick="openInNewTab('${D}{p.url}')">${D}{typeof bbb_recordings_watch != 'undefined' ? bbb_recordings_watch : 'Watch'}</button>&nbsp;
                         {if r.canDownload}
-                          <button class="bbb_download_link" id="bbb_download_link"  onclick="openInNewTab('https://scalelitey.deu.edu.tr/download/presentation/${D}{r.recordID}')">${D}{typeof bbb_recordings_download != 'undefined' ? bbb_recordings_download : 'Download'}</button>
+                          <button class="bbb_download_link" id="bbb_download_link"  onclick="openInNewTab('https://scalelite.deu.edu.tr/download/presentation/${D}{r.recordID}')">${D}{typeof bbb_recordings_download != 'undefined' ? bbb_recordings_download : 'Download'}</button>
                         {/if}
                         &nbsp;
                     {else}
