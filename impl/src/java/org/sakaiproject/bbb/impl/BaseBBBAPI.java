@@ -352,6 +352,46 @@ public class BaseBBBAPI implements BBBAPI {
         return Collections.emptyList();
     }
 
+    /**
+     * DEU: Get a single recording by meeting ID and record ID. Both values are URL encoded. The
+     * caller must still compare recordID and meetingID of the returned recording (BBB ignores
+     * meetingID when recordID is given; Scalelite matches recordID as a prefix).
+     */
+    public Map<String, Object> getRecording(String meetingID, String recordID) throws BBBException {
+
+        log.debug("getRecording({}, {})", meetingID, recordID);
+
+        StringBuilder query = new StringBuilder();
+        query.append("meetingID=");
+        query.append(encodeParameter(meetingID));
+        query.append("&recordID=");
+        query.append(encodeParameter(recordID));
+        query.append(getCheckSumParameterForQuery(APICALL_GETRECORDINGS, query.toString()));
+
+        Map<String, Object> response;
+        try {
+            response = doAPICall(APICALL_GETRECORDINGS, query.toString());
+        } catch (BBBException e) {
+            if (BBBException.MESSAGEKEY_NOTFOUND.equals(e.getMessageKey())) {
+                return null;
+            }
+            throw e;
+        }
+        if (APIRESPONSE_SUCCESS.equals(response.get("returncode")) && response.get("recordings") instanceof List) {
+            for (Object item : (List<Object>) response.get("recordings")) {
+                if (item instanceof Map && recordID.equals(((Map<String, Object>) item).get("recordID"))) {
+                    return (Map<String, Object>) item;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** DEU: URL-encode a query parameter value (UTF-8). */
+    private String encodeParameter(String value) {
+        return URLEncoder.encode(value == null ? "" : value, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
     /** End/delete a meeting on BBB server */
     public boolean endMeeting(String meetingID, String password) throws BBBException {
 
@@ -385,7 +425,8 @@ public class BaseBBBAPI implements BBBAPI {
 
         StringBuilder query = new StringBuilder();
         query.append("recordID=");
-        query.append(recordID);
+        // DEU güvenlik: parametre URL olarak kodlanır (virgül ya da & ile başka kayıt/parametre eklenemez)
+        query.append(encodeParameter(recordID));
         query.append(getCheckSumParameterForQuery(APICALL_DELETERECORDINGS, query.toString()));
 
         try {
@@ -404,9 +445,9 @@ public class BaseBBBAPI implements BBBAPI {
 
         StringBuilder query = new StringBuilder();
         query.append("recordID=");
-        query.append(recordID);
+        query.append(encodeParameter(recordID));
         query.append("&publish=");
-        query.append(publish);
+        query.append(encodeParameter(publish));
         query.append(getCheckSumParameterForQuery(APICALL_PUBLISHRECORDINGS, query.toString()));
 
         try {
@@ -425,9 +466,9 @@ public class BaseBBBAPI implements BBBAPI {
 
         StringBuilder query = new StringBuilder();
         query.append("recordID=");
-        query.append(recordID);
+        query.append(encodeParameter(recordID));
         query.append("&protect=");
-        query.append(protect);
+        query.append(encodeParameter(protect));
         query.append(getCheckSumParameterForQuery(APICALL_PROTECTRECORDINGS, query.toString()));
 
         try {

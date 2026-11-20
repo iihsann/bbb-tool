@@ -84,6 +84,7 @@
         file = files.files[0];
         var fd = new FormData();
         fd.append('file', file);
+        fd.append('sakai_csrf_token', meetings.startupArgs.csrfToken);
         var url;
 
         jQuery.ajax({
@@ -118,11 +119,14 @@
     // Remove uploaded file.
     meetings.utils.removeUpload = function (url, meetingId) {
         var response;
-        var meetingID = '';
-        if (typeof meetingId != undefined)
-            meetingID = '&meetingId=' + meetingId;
+        // DEU güvenlik: POST + CSRF jetonu
+        var removeData = { url: url, sakai_csrf_token: meetings.startupArgs.csrfToken };
+        if (typeof meetingId !== 'undefined' && meetingId)
+            removeData.meetingId = meetingId;
         jQuery.ajax({
-            url: '/direct/bbb-tool/removeUpload?url=' + url + meetingID,
+            url: '/direct/bbb-tool/removeUpload',
+            type: 'POST',
+            data: removeData,
             dataType: 'text',
             beforeSend: function (xmlHttpRequest) {
                 $('#bbb_save,#bbb_cancel').attr('disabled', 'disabled');
@@ -361,7 +365,7 @@
             url: actionUrl,
             type: 'POST',
             dataType: 'text',
-            data: $("#bbb_add_update_form").serializeArray(),
+            data: meetings.utils.addCsrfToken($("#bbb_add_update_form").serializeArray()),
             beforeSend: function (xmlHttpRequest) {
                 meetings.utils.hideMessage();
                 $('#bbb_save,#bbb_cancel').attr('disabled', 'disabled');
@@ -626,12 +630,15 @@
         }
         if (!confirm(question)) return;
 
-        var groupId = groupID ? "&groupId=" + groupID : "";
-        var endAllMeetings = endAll ? "&endAll=true" : "";
+        // DEU güvenlik: POST + CSRF jetonu
+        var endData = { meetingID: meetingID, sakai_csrf_token: meetings.startupArgs.csrfToken };
+        if (groupID) endData.groupId = groupID;
+        if (endAll) endData.endAll = 'true';
         jQuery.ajax({
-            url: "/direct/bbb-tool/endMeeting?meetingID=" + meetingID + groupId + endAllMeetings,
+            url: "/direct/bbb-tool/endMeeting",
+            data: endData,
             dataType: 'text',
-            type: "GET",
+            type: "POST",
             success: function (result) {
                 meetings.utils.checkOneMeetingAvailability(meetingID, groupID);
             },
@@ -679,9 +686,10 @@
         if (!confirm(question)) return;
 
         jQuery.ajax({
-            url: "/direct/bbb-tool/deleteRecordings?meetingID=" + meetingID + "&recordID=" + recordID,
+            url: "/direct/bbb-tool/deleteRecordings",
+            data: { meetingID: meetingID, recordID: recordID, sakai_csrf_token: meetings.startupArgs.csrfToken },
             dataType: 'text',
-            type: "GET",
+            type: "POST",
             success: function (result) {
                 if (stateFunction == 'recordings')
                     meetings.switchState('recordings');
@@ -712,9 +720,10 @@
     meetings.utils.setRecordings = function (meetingID, recordID, action, stateFunction) {
 
         jQuery.ajax({
-            url: "/direct/bbb-tool/publishRecordings?meetingID=" + meetingID + "&recordID=" + recordID + "&publish=" + action,
+            url: "/direct/bbb-tool/publishRecordings",
+            data: { meetingID: meetingID, recordID: recordID, publish: action, sakai_csrf_token: meetings.startupArgs.csrfToken },
             dataType: 'text',
-            type: "GET",
+            type: "POST",
             success: function (result) {
                 if (stateFunction == 'recordings')
                     meetings.switchState('recordings');
@@ -745,9 +754,10 @@
     meetings.utils.updateRecordings = function (meetingID, recordID, action, stateFunction) {
 
         jQuery.ajax({
-            url: "/direct/bbb-tool/protectRecordings?meetingID=" + meetingID + "&recordID=" + recordID + "&protect=" + action,
+            url: "/direct/bbb-tool/protectRecordings",
+            data: { meetingID: meetingID, recordID: recordID, protect: action, sakai_csrf_token: meetings.startupArgs.csrfToken },
             dataType: 'text',
-            type: "GET",
+            type: "POST",
             success: function (result) {
                 if (stateFunction == 'recordings')
                     meetings.switchState('recordings');
@@ -764,6 +774,42 @@
                 meetings.utils.handleError(msg, xmlHttpRequest.status, xmlHttpRequest.statusText);
             }
         });
+    };
+
+    // DEU güvenlik: durum değiştiren form isteklerine Sakai CSRF jetonu eklenir.
+    meetings.utils.addCsrfToken = function (formArray) {
+        formArray.push({ name: 'sakai_csrf_token', value: meetings.startupArgs.csrfToken });
+        return formArray;
+    };
+
+    // DEU: İzle/İndir bağlantısı tıklama anında alınır. Sunucu izni toplantının kendi sitesinde denetler ve
+    // Scalelite'tan bu kayda ait taze (tek kullanımlık) jeton ister; liste açıkken jetonun eskimesi sorun olmaz.
+    // İstek eşzamanlıdır: yeni sekme aynı tıklama içinde açıldığı için açılır pencere engeline takılmaz.
+    meetings.utils.openRecording = function (meetingID, recordID, format, download) {
+        var recordingUrl = null;
+        jQuery.ajax({
+            url: "/direct/bbb-tool/getRecordingUrl",
+            type: "POST",
+            async: false,
+            dataType: 'text',
+            data: {
+                meetingID: meetingID,
+                recordID: recordID,
+                format: format,
+                download: download ? 'true' : 'false',
+                sakai_csrf_token: meetings.startupArgs.csrfToken
+            },
+            success: function (data) {
+                recordingUrl = data;
+            },
+            error: function (xmlHttpRequest, status, error) {
+                meetings.utils.handleError(bbb_err_get_recording, xmlHttpRequest.status, xmlHttpRequest.statusText);
+            }
+        });
+        if (recordingUrl && /^https:\/\//.test(recordingUrl)) {
+            openInNewTab(recordingUrl);
+        }
+        return false;
     };
 
     // Get meeting info from BBB server.

@@ -118,6 +118,10 @@ public interface BBBMeetingManager {
     public static final String EVENT_RECORDING_PUBLISH = "bbb.recording.publish";
     /** A recording was unpublished on the BBB server */
     public static final String EVENT_RECORDING_UNPUBLISH = "bbb.recording.unpublish";
+    /** DEU: A recording was protected on the BBB server */
+    public static final String EVENT_RECORDING_PROTECT = "bbb.recording.protect";
+    /** DEU: A recording was unprotected on the BBB server */
+    public static final String EVENT_RECORDING_UNPROTECT = "bbb.recording.unprotect";
 
     /** ALL Log Events */
     public static final String[] EVENT_KEYS = new String[] {
@@ -203,19 +207,28 @@ public interface BBBMeetingManager {
     boolean endMeeting(String id, String groupId, boolean endAll) throws SecurityException, BBBException;
 
     /**
-     * Deletes a recording on the BBB server
+     * Deletes a recording on the BBB server.
+     * DEU: the meeting is loaded from the database, the recording must belong to it and the
+     * recording delete permission is checked in the meeting's own site.
      */
-    boolean deleteRecordings(String recordID) throws SecurityException, BBBException;
+    boolean deleteRecordings(String meetingID, String recordID) throws SecurityException, BBBException;
 
     /**
      * Publish and unpublish recordings using the publishRecordings api command
      */
-    boolean publishRecordings(String recordID, String publish) throws SecurityException, BBBException;
+    boolean publishRecordings(String meetingID, String recordID, String publish) throws SecurityException, BBBException;
 
     /**
      * Protect and unprotect recordings using the *_______________* api command
      */
-    boolean protectRecordings(String recordID, String protect) throws SecurityException, BBBException;
+    boolean protectRecordings(String meetingID, String recordID, String protect) throws SecurityException, BBBException;
+
+    /**
+     * DEU: Returns a fresh playback URL (or, when download is true, a download URL) for a single
+     * recording after checking the current user's permissions in the meeting's own site.
+     */
+    String getRecordingUrl(String meetingID, String recordID, String format, boolean download)
+            throws SecurityException, BBBException;
 
     /**
      * Check if meeting is ready to be joined.

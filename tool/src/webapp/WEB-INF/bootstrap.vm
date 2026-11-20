@@ -38,6 +38,7 @@
                 sakaiVersion: '${sakaiVersion}',
                 maxFileSizeInBytes: '${maxFileSizeInBytes}',
                 checkICalOption: ${checkICalOption},
+                csrfToken: '$!{csrfToken}',
              }
         };
     </script>
@@ -350,15 +351,14 @@
                     {var recType = bbb_recording_type[p.type] === undefined ? p.type : bbb_recording_type[p.type]}
                     {var viewRecType = bbb_recording_view_tooltip[p.type] === undefined ? p.type : bbb_recording_view_tooltip[p.type]}
                     {if r.published == 'true'}
-                        <button onclick="openInNewTab('${D}{p.url}')">${D}{typeof bbb_recordings_watch != 'undefined' ? bbb_recordings_watch : 'Watch'}</button>&nbsp;
-                        {if r.canDownload}
-                          <button class="bbb_download_link" id="bbb_download_link"  onclick="openInNewTab('https://scalelite.deu.edu.tr/download/presentation/${D}{r.recordID}')">${D}{typeof bbb_recordings_download != 'undefined' ? bbb_recordings_download : 'Download'}</button>
-                        {/if}
-                        &nbsp;
+                        <button onclick="return meetings.utils.openRecording('${D}{r.meetingID}','${D}{r.recordID}','${D}{p.type}',false);">${D}{typeof bbb_recordings_watch != 'undefined' ? bbb_recordings_watch : 'Watch'}</button>&nbsp;
                     {else}
                         ${D}{recType}&nbsp;
                     {/if}
                   {/for}
+                  {if r.published == 'true' && r.canDownload}
+                      <button class="bbb_download_link" onclick="return meetings.utils.openRecording('${D}{r.meetingID}','${D}{r.recordID}','presentation',true);">${D}{typeof bbb_recordings_download != 'undefined' ? bbb_recordings_download : 'Download'}</button>
+                  {/if}
                 </td>
                 <td>${D}{r.formattedDuration}</td>
             </tr>

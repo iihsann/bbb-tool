@@ -19,6 +19,7 @@ package org.sakaiproject.bbb.impl;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,6 +31,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.annotation.Resource;
@@ -104,6 +106,12 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class BBBMeetingManagerImpl implements BBBMeetingManager {
+
+    // DEU güvenlik: istemciden gelen kayıt kimliği, biçim ve Scalelite jetonu API sorgusuna ya da
+    // adrese eklenmeden önce biçim olarak denetlenir.
+    private static final Pattern RECORD_ID_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,128}$");
+    private static final Pattern RECORDING_FORMAT_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
+    private static final Pattern SCALELITE_TOKEN_PATTERN = Pattern.compile("^[A-Za-z0-9]{16,128}$");
 
     @Resource private BBBStorageManager storageManager;
     @Resource private BBBAPIWrapper bbbApiWrapper;
@@ -255,6 +263,17 @@ public class BBBMeetingManagerImpl implements BBBMeetingManager {
         BBBMeeting meeting = storageManager.getMeeting(meetingID);
 
         Map<String, Object> recordings = new HashMap<>();
+        if (meeting == null) {
+            recordings.put("recordings", "");
+            return recordings;
+        }
+        // DEU güvenlik: kayıt listesi (korumalı kayıtların oynatma jetonlarıyla birlikte) yalnız bu
+        // toplantıya erişebilen kullanıcıya verilir.
+        if (!canViewMeetingRecordings(meeting)) {
+            log.warn("bbb-tool güvenlik: toplantı kayıt listesi reddedildi (kullanıcı={}, toplantı={})",
+                    userDirectoryService.getCurrentUser().getId(), logSafe(meetingID));
+            throw new SecurityException("You are not allowed to view the recordings of this meeting");
+        }
         if (!meeting.getRecording()) {
             log.debug("Meeging {} is not set to record, setting empty recordings object ...", meetingID);
             //Mimic empty recordings object
@@ -271,7 +290,8 @@ public class BBBMeetingManagerImpl implements BBBMeetingManager {
             meetingIDs += "," + meetingID + "[" + groupId + "]";
         }
 
-        return postProcessRecordings(bbbApiWrapper.getRecordings(meetingIDs), siteId, ownerIds);
+        // DEU güvenlik: biçim süzgeci istemcinin gönderdiği siteId ile değil toplantının kendi sitesiyle uygulanır
+        return postProcessRecordings(bbbApiWrapper.getRecordings(meetingIDs), meeting.getSiteId(), ownerIds);
     }
 
     private Map<String, Object> postProcessRecordings(Map<String, Object> recordings, String siteId, Map<String, String> ownerIds) {
@@ -473,19 +493,264 @@ public class BBBMeetingManagerImpl implements BBBMeetingManager {
         return true;
     }
 
-    public boolean deleteRecordings(String recordID)
-    		throws SecurityException, BBBException {
-        return bbbApiWrapper.deleteRecordings(recordID);
-    }
+    // -----------------------------------------------------------------------
+    // --- DEU güvenlik: kayıt işlemleri ve kayıt bağlantıları ---------------
+    // -----------------------------------------------------------------------
+    // İstemcinin gönderdiği kimliklere güvenilmez: toplantı Sakai veritabanından yüklenir, izin
+    // toplantının KENDİ sitesinde denetlenir ve kaydın o toplantıya ait olduğu Scalelite'tan doğrulanır.
 
-    public boolean publishRecordings(String recordID, String publish)
-    		throws SecurityException, BBBException {
-        return bbbApiWrapper.publishRecordings(recordID, publish);
-    }
-
-    public boolean protectRecordings(String recordID, String protect)
+    public boolean deleteRecordings(String meetingID, String recordID)
             throws SecurityException, BBBException {
-        return bbbApiWrapper.protectRecordings(recordID, protect);
+        RecordingTarget target = checkRecordingAction(meetingID, recordID,
+                FN_RECORDING_DELETE_OWN, FN_RECORDING_DELETE_ANY, "delete");
+        boolean result = bbbApiWrapper.deleteRecordings(target.recordId);
+        logRecordingEvent(EVENT_RECORDING_DELETE, target);
+        return result;
+    }
+
+    public boolean publishRecordings(String meetingID, String recordID, String publish)
+            throws SecurityException, BBBException {
+        if (!"true".equals(publish) && !"false".equals(publish)) {
+            throw new IllegalArgumentException("Invalid value for parameter [publish]");
+        }
+        boolean show = "true".equals(publish);
+        RecordingTarget target = checkRecordingAction(meetingID, recordID,
+                FN_RECORDING_EDIT_OWN, FN_RECORDING_EDIT_ANY, show ? "publish" : "unpublish");
+        boolean result = bbbApiWrapper.publishRecordings(target.recordId, publish);
+        logRecordingEvent(show ? EVENT_RECORDING_PUBLISH : EVENT_RECORDING_UNPUBLISH, target);
+        return result;
+    }
+
+    public boolean protectRecordings(String meetingID, String recordID, String protect)
+            throws SecurityException, BBBException {
+        if (!"true".equals(protect) && !"false".equals(protect)) {
+            throw new IllegalArgumentException("Invalid value for parameter [protect]");
+        }
+        boolean protectIt = "true".equals(protect);
+        // Arayüz koruma bağlantısını kayıt silme iznine bağlıyor (bootstrap.vm: r.canDelete); sunucu da aynı izni ister.
+        RecordingTarget target = checkRecordingAction(meetingID, recordID,
+                FN_RECORDING_DELETE_OWN, FN_RECORDING_DELETE_ANY, protectIt ? "protect" : "unprotect");
+        boolean result = bbbApiWrapper.protectRecordings(target.recordId, protect);
+        logRecordingEvent(protectIt ? EVENT_RECORDING_PROTECT : EVENT_RECORDING_UNPROTECT, target);
+        return result;
+    }
+
+    public String getRecordingUrl(String meetingID, String recordID, String format, boolean download)
+            throws SecurityException, BBBException {
+        String userId = requireLoggedInUser();
+        if (download) {
+            // İndirme yalnız sunum biçiminden yapılır (bbb-download-api)
+            format = "presentation";
+        }
+        if (StringUtils.isBlank(format) || !RECORDING_FORMAT_PATTERN.matcher(format).matches()) {
+            throw new SecurityException("Invalid recording format");
+        }
+        RecordingTarget target = resolveRecordingTarget(meetingID, recordID);
+        BBBMeeting meeting = target.meeting;
+        String siteId = meeting.getSiteId();
+        if (!canViewMeetingRecordings(meeting)) {
+            log.warn("bbb-tool güvenlik: kayıt bağlantısı reddedildi, toplantıya erişim yok (kullanıcı={}, toplantı={}, kayıt={})",
+                    userId, logSafe(target.bbbMeetingId), target.recordId);
+            throw new SecurityException("You are not allowed to view this recording");
+        }
+        if (download && !isUserAllowedInLocation(userId, FN_RECORDING_DOWNLOAD, siteId)) {
+            log.warn("bbb-tool güvenlik: kayıt indirme reddedildi, indirme izni yok (kullanıcı={}, toplantı={}, kayıt={})",
+                    userId, logSafe(target.bbbMeetingId), target.recordId);
+            throw new SecurityException("You are not allowed to download this recording");
+        }
+        Map<String, Object> recording = fetchRecording(target);
+        if (!"true".equals(recording.get("published"))
+                && !canManageRecording(meeting, FN_RECORDING_EDIT_OWN, FN_RECORDING_EDIT_ANY)) {
+            throw new SecurityException("This recording is not published");
+        }
+        String ownerId = meeting.getOwnerId() != null ? meeting.getOwnerId() : "";
+        if (isRecordingFormatFilterEnabled() && recordingsFilterFormatRemovable(format, siteId, ownerId, userId)) {
+            throw new SecurityException("You are not allowed to view this recording format");
+        }
+        String playbackUrl = findPlaybackUrl(recording, format);
+        if (playbackUrl == null) {
+            throw new SecurityException("Recording format not available");
+        }
+        if (!download) {
+            return playbackUrl;
+        }
+        String downloadUrl = toDownloadUrl(playbackUrl, target.recordId);
+        log.info("bbb-tool kayıt indirme bağlantısı verildi (kullanıcı={}, toplantı={}, kayıt={})",
+                userId, logSafe(target.bbbMeetingId), target.recordId);
+        return downloadUrl;
+    }
+
+    /**
+     * Kullanıcının bu toplantının kayıtlarını görebilmesi: yönetici (toplantıyı düzenleyebilen/silebilen ya da
+     * sitedeki bütün kayıtları yönetebilen) veya toplantı katılımcısı olup katılma ya da kayıt görme izni olan.
+     */
+    private boolean canViewMeetingRecordings(BBBMeeting meeting) {
+        String userId = userDirectoryService.getCurrentUser().getId();
+        if (StringUtils.isBlank(userId)) {
+            return false;
+        }
+        if (securityService.isSuperUser()) {
+            return true;
+        }
+        String siteId = meeting.getSiteId();
+        if (getCanEdit(siteId, meeting) || getCanDelete(siteId, meeting)
+                || isUserAllowedInLocation(userId, FN_RECORDING_EDIT_ANY, siteId)
+                || isUserAllowedInLocation(userId, FN_RECORDING_DELETE_ANY, siteId)) {
+            return true;
+        }
+        if (getParticipantFromMeeting(meeting, userId) == null) {
+            return false;
+        }
+        return getCanParticipate(siteId) || isUserAllowedInLocation(userId, FN_RECORDING_VIEW, siteId);
+    }
+
+    /** Kayıt üzerinde değişiklik izni: toplantının sahibine "own" ya da "any", başkasına yalnız "any" (toplantının sitesinde). */
+    private boolean canManageRecording(BBBMeeting meeting, String fnOwn, String fnAny) {
+        String userId = userDirectoryService.getCurrentUser().getId();
+        if (StringUtils.isBlank(userId)) {
+            return false;
+        }
+        String siteId = meeting.getSiteId();
+        if (userId.equals(meeting.getOwnerId()) && isUserAllowedInLocation(userId, fnOwn, siteId)) {
+            return true;
+        }
+        return isUserAllowedInLocation(userId, fnAny, siteId);
+    }
+
+    private String requireLoggedInUser() {
+        String userId = userDirectoryService.getCurrentUser().getId();
+        if (StringUtils.isBlank(userId)) {
+            throw new SecurityException("You must be logged in");
+        }
+        return userId;
+    }
+
+    private RecordingTarget checkRecordingAction(String meetingID, String recordID, String fnOwn, String fnAny, String action)
+            throws BBBException {
+        String userId = requireLoggedInUser();
+        RecordingTarget target = resolveRecordingTarget(meetingID, recordID);
+        if (!canManageRecording(target.meeting, fnOwn, fnAny)) {
+            log.warn("bbb-tool güvenlik: yetkisiz kayıt işlemi reddedildi (işlem={}, kullanıcı={}, toplantı={}, kayıt={})",
+                    action, userId, logSafe(target.bbbMeetingId), target.recordId);
+            throw new SecurityException("You are not allowed to " + action + " this recording");
+        }
+        // Kaydın gerçekten bu toplantıya ait olduğu Scalelite'tan doğrulanır
+        fetchRecording(target);
+        log.info("bbb-tool kayıt işlemi: işlem={} kullanıcı={} toplantı={} kayıt={}",
+                action, userId, logSafe(target.bbbMeetingId), target.recordId);
+        return target;
+    }
+
+    /** İstemcinin gönderdiği BBB toplantı kimliğini (toplantı ya da toplantı[grup]) çözer ve toplantıyı veritabanından yükler. */
+    private RecordingTarget resolveRecordingTarget(String bbbMeetingID, String recordID) {
+        if (StringUtils.isBlank(bbbMeetingID) || bbbMeetingID.length() > 255
+                || StringUtils.isBlank(recordID) || !RECORD_ID_PATTERN.matcher(recordID).matches()) {
+            throw new SecurityException("Invalid recording");
+        }
+        String meetingId = bbbMeetingID;
+        int open = bbbMeetingID.indexOf('[');
+        if (open >= 0) {
+            String groupId = bbbMeetingID.endsWith("]") ? bbbMeetingID.substring(open + 1, bbbMeetingID.length() - 1) : "";
+            if (open == 0 || StringUtils.isBlank(groupId) || groupId.contains("[") || groupId.contains("]")) {
+                throw new SecurityException("Invalid recording");
+            }
+            meetingId = bbbMeetingID.substring(0, open);
+        } else if (bbbMeetingID.indexOf(']') >= 0) {
+            throw new SecurityException("Invalid recording");
+        }
+        BBBMeeting meeting = storageManager.getMeeting(meetingId);
+        if (meeting == null) {
+            throw new SecurityException("Invalid recording");
+        }
+        return new RecordingTarget(meeting, bbbMeetingID, recordID);
+    }
+
+    private Map<String, Object> fetchRecording(RecordingTarget target) throws BBBException {
+        Map<String, Object> recording = bbbApiWrapper.getRecording(target.bbbMeetingId, target.recordId);
+        if (recording == null
+                || !target.recordId.equals(recording.get("recordID"))
+                || !target.bbbMeetingId.equals(recording.get("meetingID"))) {
+            log.warn("bbb-tool güvenlik: kayıt bu toplantıda bulunamadı (kullanıcı={}, toplantı={}, kayıt={})",
+                    userDirectoryService.getCurrentUser().getId(), logSafe(target.bbbMeetingId), target.recordId);
+            throw new SecurityException("Recording not found in this meeting");
+        }
+        return recording;
+    }
+
+    private String findPlaybackUrl(Map<String, Object> recording, String format) {
+        Object playback = recording.get("playback");
+        if (!(playback instanceof List)) {
+            return null;
+        }
+        for (Object item : (List<Object>) playback) {
+            if (item instanceof Map) {
+                Map<String, Object> playbackFormat = (Map<String, Object>) item;
+                Object url = playbackFormat.get("url");
+                if (format.equals(playbackFormat.get("type")) && url instanceof String && StringUtils.isNotBlank((String) url)) {
+                    return ((String) url).trim();
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Oynatma adresinden (korumalı: https://<scalelite>/recording/<kayıt>/presentation?token=T, korumasız:
+     * https://<scalelite>/playback/presentation/2.3/<kayıt>) indirme adresi kurar:
+     * https://<scalelite>/download/presentation/<kayıt>[?token=T]. Ana bilgisayar adı sabit yazılmaz.
+     */
+    private String toDownloadUrl(String playbackUrl, String recordID) {
+        URI uri;
+        try {
+            uri = new URI(playbackUrl);
+        } catch (URISyntaxException e) {
+            throw new SecurityException("Invalid playback URL");
+        }
+        if (!"https".equalsIgnoreCase(uri.getScheme()) || StringUtils.isBlank(uri.getHost())) {
+            throw new SecurityException("Invalid playback URL");
+        }
+        StringBuilder url = new StringBuilder("https://").append(uri.getHost());
+        if (uri.getPort() != -1) {
+            url.append(':').append(uri.getPort());
+        }
+        url.append("/download/presentation/").append(recordID);
+        String query = uri.getRawQuery();
+        if (query != null) {
+            for (String pair : query.split("&")) {
+                if (pair.startsWith("token=")) {
+                    String token = pair.substring("token=".length());
+                    if (!SCALELITE_TOKEN_PATTERN.matcher(token).matches()) {
+                        throw new SecurityException("Invalid playback token");
+                    }
+                    url.append("?token=").append(token);
+                    break;
+                }
+            }
+        }
+        return url.toString();
+    }
+
+    private void logRecordingEvent(String event, RecordingTarget target) {
+        eventTrackingService.post(eventTrackingService.newEvent(event,
+                Entity.SEPARATOR + ENTITY_PREFIX + Entity.SEPARATOR + target.meeting.getId() + "/recording/" + target.recordId,
+                target.meeting.getSiteId(), true, NotificationService.NOTI_OPTIONAL));
+    }
+
+    /** Günlüğe yazılan istemci değerlerinden satır sonu vb. denetim karakterlerini ayıklar. */
+    private static String logSafe(String value) {
+        return value == null ? null : value.replaceAll("[^A-Za-z0-9_.:@\\[\\]-]", "?");
+    }
+
+    private static final class RecordingTarget {
+        private final BBBMeeting meeting;
+        private final String bbbMeetingId;
+        private final String recordId;
+
+        private RecordingTarget(BBBMeeting meeting, String bbbMeetingId, String recordId) {
+            this.meeting = meeting;
+            this.bbbMeetingId = bbbMeetingId;
+            this.recordId = recordId;
+        }
     }
 
     public void checkJoinMeetingPreConditions(BBBMeeting meeting)

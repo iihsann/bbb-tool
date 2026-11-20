@@ -25,6 +25,12 @@ public interface BBBAPI {
 
     Map<String, Object> getRecordings(String meetingID) throws BBBException;
 
+    /**
+     * DEU: Get a single recording by meeting ID and record ID (both URL encoded).
+     * Returns null when the recording is not found.
+     */
+    Map<String, Object> getRecording(String meetingID, String recordID) throws BBBException;
+
     boolean endMeeting(String meetingID, String password) throws BBBException;
 
     boolean deleteRecordings(String recordID) throws BBBException;

@@ -33,4 +33,7 @@ public interface SakaiProxy {
     String getUserTimezone();
     void checkPermissions();
 	String getFileSizeMax();
+
+	/** DEU: the Sakai CSRF token of the current session (empty when there is none). */
+	String getCsrfToken();
 }

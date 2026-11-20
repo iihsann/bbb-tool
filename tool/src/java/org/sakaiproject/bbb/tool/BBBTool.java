@@ -122,6 +122,8 @@ public class BBBTool extends HttpServlet {
         ctx.put("sakaiVersion", sakaiProxy.getSakaiVersion());
         ctx.put("maxFileSizeInBytes", sakaiProxy.getFileSizeMax());
         ctx.put("checkICalOption", serverConfigurationService.getBoolean(BBBMeetingManager.CFG_CHECKICALOPTION, true));
+        // DEU güvenlik: durum değiştiren isteklerde gönderilecek Sakai CSRF jetonu
+        ctx.put("csrfToken", sakaiProxy.getCsrfToken());
 
         response.setStatus(HttpServletResponse.SC_OK);
         response.setContentType("text/html");

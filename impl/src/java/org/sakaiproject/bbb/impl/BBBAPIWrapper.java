@@ -230,6 +230,11 @@ public class BBBAPIWrapper {
         return api.deleteRecordings(recordingID);
     }
 
+    /** DEU: a single recording (null when not found); errors are thrown, not converted. */
+    public Map<String, Object> getRecording(String meetingID, String recordID) throws BBBException {
+        return api.getRecording(meetingID, recordID);
+    }
+
     public void makeSureMeetingExists(BBBMeeting meeting) throws BBBException {
         api.makeSureMeetingExists(meeting, autoCloseMeetingWindow, recordingEnabled,
             recordingReadyNotificationEnabled, preuploadPresentationEnabled);

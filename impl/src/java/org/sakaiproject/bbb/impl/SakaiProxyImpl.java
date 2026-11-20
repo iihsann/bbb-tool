@@ -24,8 +24,11 @@ import javax.annotation.Resource;
 import org.sakaiproject.bbb.api.BBBMeetingManager;
 import org.sakaiproject.bbb.api.SakaiProxy;
 import org.sakaiproject.component.api.ServerConfigurationService;
+import org.sakaiproject.event.api.UsageSessionService;
 import org.sakaiproject.site.api.SiteService;
 import org.sakaiproject.tool.api.Placement;
+import org.sakaiproject.tool.api.Session;
+import org.sakaiproject.tool.api.SessionManager;
 import org.sakaiproject.tool.api.ToolManager;
 import org.sakaiproject.user.api.User;
 import org.sakaiproject.user.api.UserDirectoryService;
@@ -45,6 +48,7 @@ class SakaiProxyImpl implements SakaiProxy {
     @Resource private SiteService siteService;
     @Resource private ToolManager toolManager;
     @Resource private ServerConfigurationService serverConfigurationService;
+    @Resource private SessionManager sessionManager;
 
 	public User getCurrentUser() {
 
@@ -119,5 +123,11 @@ class SakaiProxyImpl implements SakaiProxy {
 
 	public String getFileSizeMax() {
 		return serverConfigurationService.getString(BBBMeetingManager.SYSTEM_UPLOAD_MAX);
+	}
+
+	public String getCsrfToken() {
+		Session session = sessionManager.getCurrentSession();
+		Object token = session != null ? session.getAttribute(UsageSessionService.SAKAI_CSRF_SESSION_ATTRIBUTE) : null;
+		return token instanceof String ? (String) token : "";
 	}
 }

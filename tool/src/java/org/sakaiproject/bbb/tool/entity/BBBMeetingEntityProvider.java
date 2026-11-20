@@ -20,6 +20,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -27,6 +29,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
+import java.util.regex.Pattern;
 
 
 import org.apache.commons.lang.StringEscapeUtils;
@@ -45,6 +48,7 @@ import org.sakaiproject.component.api.ServerConfigurationService;
 import org.sakaiproject.entity.api.Entity;
 import org.sakaiproject.entity.api.ResourceProperties;
 import org.sakaiproject.entity.api.ResourcePropertiesEdit;
+import org.sakaiproject.event.api.UsageSessionService;
 import org.sakaiproject.entitybroker.EntityReference;
 import org.sakaiproject.entitybroker.EntityView;
 import org.sakaiproject.entitybroker.entityprovider.CoreEntityProvider;
@@ -81,6 +85,8 @@ import org.sakaiproject.id.api.IdManager;
 import org.sakaiproject.site.api.Group;
 import org.sakaiproject.site.api.Site;
 import org.sakaiproject.site.api.SiteService;
+import org.sakaiproject.tool.api.Session;
+import org.sakaiproject.tool.api.SessionManager;
 import org.sakaiproject.user.api.User;
 import org.sakaiproject.user.api.UserDirectoryService;
 import org.sakaiproject.user.api.UserNotDefinedException;
@@ -115,6 +121,7 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
     private ServerConfigurationService serverConfigurationService;
     private ContentHostingService contentHostingService;
     private SecurityService securityService;
+    private SessionManager sessionManager;
 
     public String[] getHandledOutputFormats() {
         return new String[] { Formats.HTML, Formats.JSON, Formats.TXT };
@@ -182,6 +189,9 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
     public String createEntity(EntityReference ref, Object entity, Map<String, Object> params) {
 
         log.debug("createMeeting");
+
+        // DEU güvenlik: CSRF jetonu
+        checkCsrfToken(params);
 
         log.debug("EntityReference:" + ref.toString() + ", Entity:" + entity.toString() + ", params:" + params.toString());
 
@@ -272,6 +282,9 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
     public void updateEntity(EntityReference ref, Object entity, Map<String, Object> params) {
 
         log.debug("updateMeeting");
+
+        // DEU güvenlik: CSRF jetonu
+        checkCsrfToken(params);
 
         BBBMeeting newMeeting = (BBBMeeting) entity;
 
@@ -635,10 +648,12 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
 
         log.debug("isMeetingRunning");
 
-        String meetingID = (String) params.get("meetingID");
+        String meetingID = getStringParam(params, "meetingID");
         if (meetingID == null) {
             throw new IllegalArgumentException("Missing required parameters meetingId");
         }
+        // DEU güvenlik: yalnız toplantıya erişebilen kullanıcı
+        getAccessibleMeeting(meetingID);
 
         try {
             return Boolean.toString(meetingManager.isMeetingRunning(meetingID));
@@ -648,17 +663,21 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
         }
     }
 
-    @EntityCustomAction(viewKey = EntityView.VIEW_LIST)
+    @EntityCustomAction(viewKey = EntityView.VIEW_NEW)
     public String endMeeting(Map<String, Object> params) {
 
         log.debug("endMeeting");
 
-        String meetingID = (String) params.get("meetingID");
+        // DEU güvenlik: durum değiştiren işlem yalnız POST + CSRF jetonuyla (izin denetimi BBBMeetingManager.endMeeting'de)
+        requireLoggedInUser();
+        checkCsrfToken(params);
+
+        String meetingID = getStringParam(params, "meetingID");
         if (meetingID == null) {
             throw new IllegalArgumentException("Missing required parameter [meetingID]");
         }
-        String groupId = (String) params.get("groupId");
-        String endAll = (String) params.get("endAll");
+        String groupId = getStringParam(params, "groupId");
+        String endAll = getStringParam(params, "endAll");
         try {
             if (groupId != null) {
                 return Boolean.toString(meetingManager.endMeeting(meetingID, groupId, false));
@@ -667,9 +686,10 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
             }
 
             return Boolean.toString(meetingManager.endMeeting(meetingID, "", false));
+        } catch (SecurityException se) {
+            throw new EntityException(se.getMessage(), Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 403);
         } catch (BBBException e) {
-            String ref = Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX + Entity.SEPARATOR + meetingID;
-            throw new EntityException(e.getPrettyMessage(), ref, 400);
+            throw new EntityException(e.getPrettyMessage(), Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 400);
         }
     }
 
@@ -682,8 +702,11 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
             throw new EntityNotFoundException("Meeting not found", null);
         }
 
+        // DEU güvenlik: toplantı bilgisi (katılımcı adları) yalnız toplantıya erişebilen kullanıcıya verilir
+        getAccessibleMeeting(ref.getId());
+
         try {
-            String groupId = (String) params.get("groupId");
+            String groupId = getStringParam(params, "groupId");
             Map<String, Object> meetingInfoResponse = meetingManager.getMeetingInfo(ref.getId(), groupId);
             return new ActionReturn(meetingInfoResponse);
         } catch (BBBException e) {
@@ -705,6 +728,8 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
         try {
             Map<String, Object> recordingsResponse = meetingManager.getRecordings(ref.getId(), groupId, siteId);
             return new ActionReturn(recordingsResponse);
+        } catch (SecurityException se) {
+            throw new EntityException(se.getMessage(), Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 403);
         } catch (BBBException e) {
             return new ActionReturn(new HashMap<String, String>());
         }
@@ -730,67 +755,101 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
         }
     }
 
-    @EntityCustomAction(viewKey = EntityView.VIEW_LIST)
+    // DEU güvenlik: kayıt işlemleri yalnız POST + CSRF jetonuyla; meetingID zorunlu. İzin toplantının kendi
+    // sitesinde denetlenir ve kaydın o toplantıya ait olduğu Scalelite'tan doğrulanır (BBBMeetingManagerImpl).
+    @EntityCustomAction(viewKey = EntityView.VIEW_NEW)
     public String publishRecordings(Map<String, Object> params) {
 
         log.debug("publishRecordings");
 
-        String recordID = (String) params.get("recordID");
-        if (recordID == null) {
-            throw new IllegalArgumentException("Missing required parameter [recordID]");
-        }
-        String publish = (String) params.get("publish");
-        if (publish == null) {
-            throw new IllegalArgumentException("Missing required parameter [publish]");
+        requireLoggedInUser();
+        checkCsrfToken(params);
+        String meetingID = getStringParam(params, "meetingID");
+        String recordID = getStringParam(params, "recordID");
+        String publish = getStringParam(params, "publish");
+        if (meetingID == null || recordID == null || publish == null) {
+            throw new IllegalArgumentException("Missing required parameters [meetingID, recordID, publish]");
         }
 
         try {
-            return Boolean.toString(meetingManager.publishRecordings(recordID, publish));
+            return Boolean.toString(meetingManager.publishRecordings(meetingID, recordID, publish));
+        } catch (SecurityException se) {
+            throw new EntityException(se.getMessage(), Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 403);
         } catch (BBBException e) {
-            String ref = Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX + Entity.SEPARATOR + recordID;
-            throw new EntityException(e.getPrettyMessage(), ref, 400);
+            throw new EntityException(e.getPrettyMessage(), Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 400);
         }
     }
 
-    @EntityCustomAction(viewKey = EntityView.VIEW_LIST)
+    @EntityCustomAction(viewKey = EntityView.VIEW_NEW)
     public String protectRecordings(Map<String, Object> params) {
 
         log.debug("protectRecordings");
 
-        String recordID = (String) params.get("recordID");
-        if (recordID == null) {
-            throw new IllegalArgumentException("Missing required parameter [recordID]");
-        }
-        String protect = (String) params.get("protect");
-        if (protect == null) {
-            throw new IllegalArgumentException("Missing required parameter [protect]");
+        requireLoggedInUser();
+        checkCsrfToken(params);
+        String meetingID = getStringParam(params, "meetingID");
+        String recordID = getStringParam(params, "recordID");
+        String protect = getStringParam(params, "protect");
+        if (meetingID == null || recordID == null || protect == null) {
+            throw new IllegalArgumentException("Missing required parameters [meetingID, recordID, protect]");
         }
 
         try {
-            return Boolean.toString(meetingManager.protectRecordings(recordID, protect));
+            return Boolean.toString(meetingManager.protectRecordings(meetingID, recordID, protect));
+        } catch (SecurityException se) {
+            throw new EntityException(se.getMessage(), Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 403);
         } catch (BBBException e) {
-            String ref = Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX
-                    + Entity.SEPARATOR + recordID;
-            throw new EntityException(e.getPrettyMessage(), ref, 400);
+            throw new EntityException(e.getPrettyMessage(), Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 400);
         }
     }
 
-    @EntityCustomAction(viewKey = EntityView.VIEW_LIST)
+    @EntityCustomAction(viewKey = EntityView.VIEW_NEW)
     public String deleteRecordings(Map<String, Object> params) {
 
         log.debug("deleteRecordings");
 
-        String recordID = (String) params.get("recordID");
-        if (recordID == null) {
-            throw new IllegalArgumentException("Missing required parameter [recordID]");
+        requireLoggedInUser();
+        checkCsrfToken(params);
+        String meetingID = getStringParam(params, "meetingID");
+        String recordID = getStringParam(params, "recordID");
+        if (meetingID == null || recordID == null) {
+            throw new IllegalArgumentException("Missing required parameters [meetingID, recordID]");
         }
 
         try {
-            return Boolean.toString(meetingManager.deleteRecordings(recordID));
+            return Boolean.toString(meetingManager.deleteRecordings(meetingID, recordID));
+        } catch (SecurityException se) {
+            throw new EntityException(se.getMessage(), Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 403);
         } catch (BBBException e) {
-            String ref = Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX
-                    + Entity.SEPARATOR + recordID;
-            throw new EntityException(e.getPrettyMessage(), ref, 400);
+            throw new EntityException(e.getPrettyMessage(), Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 400);
+        }
+    }
+
+    /**
+     * DEU: İzle/İndir düğmesi için tıklama anında, izin denetlenerek tek kayda ait taze oynatma (ya da
+     * download=true ise indirme) adresi döner. POST + CSRF: jetonlu adres başka siteden okunamaz.
+     */
+    @EntityCustomAction(viewKey = EntityView.VIEW_NEW)
+    public String getRecordingUrl(Map<String, Object> params) {
+
+        log.debug("getRecordingUrl");
+
+        requireLoggedInUser();
+        checkCsrfToken(params);
+        String meetingID = getStringParam(params, "meetingID");
+        String recordID = getStringParam(params, "recordID");
+        String format = getStringParam(params, "format");
+        boolean download = "true".equals(getStringParam(params, "download"));
+        if (meetingID == null || recordID == null) {
+            throw new IllegalArgumentException("Missing required parameters [meetingID, recordID]");
+        }
+
+        try {
+            return meetingManager.getRecordingUrl(meetingID, recordID, format, download);
+        } catch (SecurityException se) {
+            throw new EntityException(se.getMessage(), Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 403);
+        } catch (BBBException e) {
+            throw new EntityException(e.getPrettyMessage(), Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 400);
         }
     }
 
@@ -857,15 +916,29 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
             }
 
             //group sessions
-            String groupId = (String) params.get("groupId");
+            String groupId = getStringParam(params, "groupId");
+            String groupTitle = null;
             if (groupId != null && meeting.getGroupSessions()) {
+                // DEU güvenlik: grup toplantının sitesinde olmalı ve kullanıcı o grubun üyesi ya da toplantıyı
+                // düzenleyebilen biri olmalı. Grup adı istemciden alınmaz, siteden okunur (sayfaya ve BBB'ye
+                // istemci metni girmez).
+                Group group = siteService.getSite(meeting.getSiteId()).getGroup(groupId);
+                if (group == null) {
+                    throw new EntityException("Invalid group", ref.getReference(), 400);
+                }
+                if (!meetingManager.getUserGroupIdsInSite(user.getId(), meeting.getSiteId()).contains(groupId)
+                        && !meetingManager.getCanEdit(meeting.getSiteId(), meeting) && !securityService.isSuperUser()) {
+                    log.warn("bbb-tool güvenlik: grup oturumuna katılım reddedildi, grup üyesi değil (kullanıcı={})", user.getId());
+                    throw new EntityException("You are not a member of this group", ref.getReference(), 403);
+                }
+                groupTitle = group.getTitle();
                 meeting.setId(meeting.getId() + "[" + groupId + "]");
             } else {
+                groupId = null;
                 meeting.setId(meeting.getId());
             }
 
             //Unescape Meeting name
-            String groupTitle = (String) params.get("groupTitle");
             String nameStr = meeting.getName();
             if (groupTitle != null){
                 meeting.setName(StringEscapeUtils.unescapeHtml(nameStr) + " (" + groupTitle + ")");
@@ -921,6 +994,8 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
                 html = getHtmlForJoining(joinUrl, meetingId);
             return html;
 
+        } catch (EntityException ee) {
+            throw ee;
         } catch (Exception e) {
             throw new EntityException(e.getMessage(), ref.getReference(), 400);
         }
@@ -1015,13 +1090,8 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
             throw new IllegalArgumentException("Missing required parameter [meetingID]");
         }
 
-        //Get meeting
-        BBBMeeting meeting = null;
-        try {
-            meeting = meetingManager.getMeeting(meetingID);
-        } catch (Exception e) {
-            return null;
-        }
+        // DEU güvenlik: yalnız toplantıya erişebilen kullanıcı (grup adları)
+        BBBMeeting meeting = getAccessibleMeeting(meetingID);
 
         Site site;
         try {
@@ -1059,9 +1129,16 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
 
         log.debug("getUserSelectionOptions");
 
-        String siteId = (String) params.get("siteId");
+        String siteId = getStringParam(params, "siteId");
         if (siteId == null) {
             throw new IllegalArgumentException("Missing required parameter siteId");
+        }
+        // DEU güvenlik: site üye listesi (ad, kullanıcı adı) yalnız o sitede toplantı açabilen ya da
+        // düzenleyebilen kullanıcıya verilir (katılımcı seçme formu).
+        String currentUserId = requireLoggedInUser();
+        if (!canCreateOrEditMeetingsInSite(currentUserId, siteId)) {
+            log.warn("bbb-tool güvenlik: site üye listesi reddedildi (kullanıcı={})", currentUserId);
+            throw new EntityException("You are not allowed to list the members of this site", Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 403);
         }
 
         try {
@@ -1161,16 +1238,27 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
 
         log.debug("Uploading File");
 
-        String url = "";
-        String siteId = (String) params.get("siteId");
-        FileItem file = (FileItem) params.get("file");
+        // DEU güvenlik: yalnız oturum açmış, CSRF jetonu doğru ve o sitede toplantı açabilen/düzenleyebilen kullanıcı
+        String userId = requireLoggedInUser();
+        checkCsrfToken(params);
+        String siteId = getStringParam(params, "siteId");
+        if (siteId == null || !canCreateOrEditMeetingsInSite(userId, siteId)) {
+            log.warn("bbb-tool güvenlik: sunum yükleme reddedildi (kullanıcı={})", userId);
+            throw new EntityException("You are not allowed to upload a presentation to this site",
+                    Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 403);
+        }
+        Object fileParam = params.get("file");
+        if (!(fileParam instanceof FileItem)) {
+            throw new IllegalArgumentException("Missing required parameter [file]");
+        }
+        FileItem file = (FileItem) fileParam;
 
+        String url = "";
         try {
             String filename = Validator.getFileName(file.getName());
             String contentType = file.getContentType();
 
             InputStream fileContentStream = file.getInputStream();
-            InputStreamReader reader = new InputStreamReader(fileContentStream);
 
             if (fileContentStream != null) {
                 String name = Validator.getFileName(filename);
@@ -1181,15 +1269,15 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
                 props.addProperty(ResourceProperties.PROP_DESCRIPTION, filename);
                 SecurityAdvisor sa = uploadFileSecurityAdvisor();
                 try {
-                    if (siteId != null) {
-                        ContentResource attachment = contentHostingService.addAttachmentResource(resourceId, siteId, "Meetings", contentType, fileContentStream, props);
-                        securityService.pushAdvisor(sa);
-                        // Make sure the resource is closed to public.
+                    ContentResource attachment = contentHostingService.addAttachmentResource(resourceId, siteId, "Meetings", contentType, fileContentStream, props);
+                    // Make sure the resource is closed to public. DEU: danışman yalnız bu çağrı süresince etkin.
+                    securityService.pushAdvisor(sa);
+                    try {
                         contentHostingService.setPubView(attachment.getId(), false);
-                        url = attachment.getUrl();
-                    } else {
-                        log.debug("Upload failed; Site not found");
+                    } finally {
+                        securityService.popAdvisor(sa);
                     }
+                    url = attachment.getUrl();
                 } catch(IdInvalidException e) {
                     log.debug(e.getMessage());
                 } catch(InconsistentException e) {
@@ -1227,48 +1315,70 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
         };
     }
 
-    @EntityCustomAction(viewKey = EntityView.VIEW_LIST)
+    @EntityCustomAction(viewKey = EntityView.VIEW_NEW)
     public String removeUpload(Map<String, Object> params) {
 
         log.debug("Removing File");
 
-        String resourceId = (String) params.get("url");
-        String meetingId = (String) params.get("meetingId");
+        // DEU güvenlik: önceki sürüm "content.delete.any" iznini koşulsuz veriyordu; herhangi bir kullanıcı Sakai'deki
+        // herhangi bir dosyayı silebiliyordu. Artık yalnız bu aracın bir sitenin "Meetings" ek klasörüne yüklediği dosya,
+        // o sitede toplantıyı düzenleyebilen (yeni toplantıda: toplantı açabilen) ve dosyayı kendisi yüklemiş (ya da
+        // sitedeki bütün toplantıları düzenleyebilen) kullanıcı tarafından silinebilir.
+        String userId = requireLoggedInUser();
+        checkCsrfToken(params);
+        String resourceId = getStringParam(params, "url");
+        String meetingId = getStringParam(params, "meetingId");
 
-        SecurityAdvisor sa = removeUploadSecurityAdvisor();
-        try {
-            securityService.pushAdvisor(sa);
-            contentHostingService.removeResource(resourceId);
-        } catch (PermissionException e) {
-            log.debug(e.getMessage());
-            return Boolean.toString(false);
-        } catch (IdUnusedException e) {
-            log.debug(e.getMessage());
-            return Boolean.toString(false);
-        } catch (TypeException e) {
-            log.debug(e.getMessage());
-            return Boolean.toString(false);
-        } catch (InUseException e) {
-            log.debug(e.getMessage());
-            return Boolean.toString(false);
+        String siteId = getMeetingsAttachmentSiteId(resourceId);
+        if (siteId == null) {
+            log.warn("bbb-tool güvenlik: sunum silme reddedildi, geçersiz kaynak (kullanıcı={})", userId);
+            throw new EntityException("Invalid presentation", Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 403);
         }
 
-        if(meetingId != null && meetingId != ""){
+        BBBMeeting meeting = null;
+        if (meetingId != null && !meetingId.isEmpty()) {
             try {
-                BBBMeeting meeting = meetingManager.getMeeting(meetingId);
-                if (meeting != null) {
-                    meeting.setPresentation("");
-                    try {
-                        //Update meeting presentation value
-                        if (!meetingManager.updateMeeting(meeting, false, false, false, 0L, true))
-                            throw new EntityException("Unable to update meeting in DB", meeting.getId(), 400);
-                    } catch (BBBException e) {
-                        throw new EntityException(e.getPrettyMessage(), meeting.getId(), 400);
-                    }
+                meeting = meetingManager.getMeeting(meetingId);
+            } catch (Exception e) {
+                meeting = null;
+            }
+            if (meeting == null || !siteId.equals(meeting.getSiteId())
+                    || !meetingManager.getCanEdit(meeting.getSiteId(), meeting)) {
+                log.warn("bbb-tool güvenlik: sunum silme reddedildi, toplantı düzenleme izni yok (kullanıcı={})", userId);
+                throw new EntityException("You are not allowed to change this meeting",
+                        Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 403);
+            }
+        } else if (!canCreateOrEditMeetingsInSite(userId, siteId)) {
+            log.warn("bbb-tool güvenlik: sunum silme reddedildi, sitede toplantı izni yok (kullanıcı={})", userId);
+            throw new EntityException("You are not allowed to remove this presentation",
+                    Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 403);
+        }
+
+        SecurityAdvisor sa = removeUploadSecurityAdvisor(contentHostingService.getReference(resourceId));
+        securityService.pushAdvisor(sa);
+        try {
+            if (!meetingManager.isUserAllowedInLocation(userId, BBBMeetingManager.FN_EDIT_ANY, siteId)) {
+                String creator = contentHostingService.getProperties(resourceId).getProperty(ResourceProperties.PROP_CREATOR);
+                if (!userId.equals(creator)) {
+                    log.warn("bbb-tool güvenlik: sunum silme reddedildi, dosya başka kullanıcının (kullanıcı={})", userId);
+                    return Boolean.toString(false);
                 }
-            } catch (SecurityException se) {
-                log.debug(se.getMessage());
-                return Boolean.toString(false);
+            }
+            contentHostingService.removeResource(resourceId);
+        } catch (PermissionException | IdUnusedException | TypeException | InUseException e) {
+            log.debug(e.getMessage());
+            return Boolean.toString(false);
+        } finally {
+            securityService.popAdvisor(sa);
+        }
+
+        if (meeting != null) {
+            meeting.setPresentation("");
+            try {
+                //Update meeting presentation value
+                if (!meetingManager.updateMeeting(meeting, false, false, false, 0L, true)) {
+                    return Boolean.toString(false);
+                }
             } catch (Exception e) {
                 log.debug(e.getMessage());
                 return Boolean.toString(false);
@@ -1277,18 +1387,79 @@ public class BBBMeetingEntityProvider extends AbstractEntityProvider implements
         return Boolean.toString(true);
     }
 
-    private SecurityAdvisor removeUploadSecurityAdvisor() {
+    /** DEU güvenlik: yalnız denetlenmiş tek dosya (tam başvuru) için okuma ve silme izni. */
+    private SecurityAdvisor removeUploadSecurityAdvisor(final String allowedReference) {
         return (userId, function, reference) -> {
-            if (function.equals(contentHostingService.AUTH_RESOURCE_REMOVE_OWN) ||
-              function.equals(contentHostingService.AUTH_RESOURCE_HIDDEN) ) {
-                return SecurityAdvisor.SecurityAdvice.ALLOWED;
-            } else if (function.equals(contentHostingService.AUTH_RESOURCE_REMOVE_ANY)) {
-                log.info(userId + " requested ability to remove any content on " + reference +
-                    " which we didn't expect, this should be investigated");
+            if (allowedReference != null && allowedReference.equals(reference)
+                    && (function.equals(ContentHostingService.AUTH_RESOURCE_READ)
+                        || function.equals(ContentHostingService.AUTH_RESOURCE_REMOVE_OWN)
+                        || function.equals(ContentHostingService.AUTH_RESOURCE_REMOVE_ANY)
+                        || function.equals(ContentHostingService.AUTH_RESOURCE_HIDDEN))) {
                 return SecurityAdvisor.SecurityAdvice.ALLOWED;
             }
             return SecurityAdvisor.SecurityAdvice.PASS;
         };
+    }
+
+    // --- DEU güvenlik yardımcıları
+    // -------------------------------------------------------------
+    private static final String CSRF_PARAM = "sakai_csrf_token";
+    private static final Pattern MEETINGS_ATTACHMENT_ID = Pattern.compile("^/attachment/([^/]+)/Meetings/[^/]+/[^/]+$");
+
+    private String requireLoggedInUser() {
+        String userId = sessionManager.getCurrentSessionUserId();
+        if (userId == null || userId.trim().isEmpty()) {
+            throw new EntityException("You must be logged in", Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 401);
+        }
+        return userId;
+    }
+
+    /** Sakai CSRF jetonu (oturum özniteliği sakai.csrf.token) istekteki sakai_csrf_token ile sabit sürede karşılaştırılır. */
+    private void checkCsrfToken(Map<String, Object> params) {
+        Session session = sessionManager.getCurrentSession();
+        Object expected = session != null ? session.getAttribute(UsageSessionService.SAKAI_CSRF_SESSION_ATTRIBUTE) : null;
+        Object supplied = params != null ? params.get(CSRF_PARAM) : null;
+        if (!(expected instanceof String) || !(supplied instanceof String)
+                || !MessageDigest.isEqual(((String) expected).getBytes(StandardCharsets.UTF_8),
+                        ((String) supplied).getBytes(StandardCharsets.UTF_8))) {
+            log.warn("bbb-tool güvenlik: CSRF jetonu doğrulanamadı (kullanıcı={})", session != null ? session.getUserId() : null);
+            throw new EntityException("CSRF token validation failed", Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 403);
+        }
+    }
+
+    private static String getStringParam(Map<String, Object> params, String name) {
+        Object value = params != null ? params.get(name) : null;
+        return value instanceof String ? (String) value : null;
+    }
+
+    private boolean canCreateOrEditMeetingsInSite(String userId, String siteId) {
+        return meetingManager.getCanCreate(siteId)
+                || meetingManager.isUserAllowedInLocation(userId, BBBMeetingManager.FN_EDIT_OWN, siteId)
+                || meetingManager.isUserAllowedInLocation(userId, BBBMeetingManager.FN_EDIT_ANY, siteId);
+    }
+
+    /** Toplantıya erişim denetimi: BBBMeetingManager.getMeeting katılımcı ya da yönetici olmayana null döner. */
+    private BBBMeeting getAccessibleMeeting(String meetingId) {
+        BBBMeeting meeting = null;
+        try {
+            meeting = meetingManager.getMeeting(meetingId);
+        } catch (Exception e) {
+            log.debug("getAccessibleMeeting: {}", e.getMessage());
+        }
+        if (meeting == null) {
+            throw new EntityException("You are not allowed to access this meeting",
+                    Entity.SEPARATOR + BBBMeetingManager.ENTITY_PREFIX, 403);
+        }
+        return meeting;
+    }
+
+    /** /attachment/<site>/Meetings/<klasör>/<ad> biçimindeki kaynak kimliğinden site kimliğini döner; değilse null. */
+    private static String getMeetingsAttachmentSiteId(String resourceId) {
+        if (resourceId == null || resourceId.contains("..") || resourceId.contains("%") || resourceId.contains("\\")) {
+            return null;
+        }
+        java.util.regex.Matcher m = MEETINGS_ATTACHMENT_ID.matcher(resourceId);
+        return m.matches() ? m.group(1) : null;
     }
 
     // --- Statisticable
