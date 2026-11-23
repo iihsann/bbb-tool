@@ -124,6 +124,13 @@ public class BBBTool extends HttpServlet {
         ctx.put("checkICalOption", serverConfigurationService.getBoolean(BBBMeetingManager.CFG_CHECKICALOPTION, true));
         // DEU güvenlik: durum değiştiren isteklerde gönderilecek Sakai CSRF jetonu
         ctx.put("csrfToken", sakaiProxy.getCsrfToken());
+        // DEU: yerel JS/CSS adreslerine sürüm eki (PortalUtils.getCDNQuery ile aynı değer). Statik dosyalar
+        // Cache-Control göndermiyor ve derleme zamanı sabit (outputTimestamp); tarayıcı eski JS'yi haftalarca
+        // sunucuya sormadan kullanıyordu (23 Kas 2026: 2ed082e'den sonra jetonsuz toplantı oluşturma → 403).
+        // Adres değişince tarayıcı dosyayı yeniden indirir. portal.cdn.version'ı entrypoint.sh yayın başına yazar.
+        String cdnVersion = serverConfigurationService.getString("portal.cdn.version",
+                serverConfigurationService.getString("version.service", "0"));
+        ctx.put("cdnQuery", "?version=" + cdnVersion);
 
         response.setStatus(HttpServletResponse.SC_OK);
         response.setContentType("text/html");

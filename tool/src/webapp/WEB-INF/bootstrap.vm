@@ -43,9 +43,9 @@
         };
     </script>
     ${sakaiHtmlHead}
-    <link rel="stylesheet" type="text/css" href="/bbb-tool/css/bbb.css" />
-    <link rel="stylesheet" type="text/css" href="/bbb-tool/lib/jquery.datepick.package-3.7.5/redmond.datepick.css" />
-    <link  rel="stylesheet" href="/bbb-tool/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/bbb-tool/css/bbb.css$!{cdnQuery}" />
+    <link rel="stylesheet" type="text/css" href="/bbb-tool/lib/jquery.datepick.package-3.7.5/redmond.datepick.css$!{cdnQuery}" />
+    <link  rel="stylesheet" href="/bbb-tool/css/jquery.dataTables.min.css$!{cdnQuery}">
     <style>
         /* =================================================================================
            1. TEMEL YAPI DÜZELTMELERİ (Her Zaman Geçerli)
@@ -166,14 +166,14 @@
     <script>includeLatestJQuery("bigbluebutton");</script>
     <script type="text/javascript" src="/library/js/trimpath-template-latest.js"></script>
     <script type="text/javascript" src="/library/js/jquery/i18n-properties/1.0.9/jquery.i18n.properties-min-1.0.9.js"></script>
-    <script type="text/javascript" src="/bbb-tool/lib/jquery.tablesorter.min.js"></script>
+    <script type="text/javascript" src="/bbb-tool/lib/jquery.tablesorter.min.js$!{cdnQuery}"></script>
     <!--script type="text/javascript" src="/bbb-tool/lib/jquery.datepick.package-3.7.5/jquery.datepick.pack.js"></script-->
-    <script type="text/javascript" src="/bbb-tool/lib/jquery.browser.min.js"></script>
+    <script type="text/javascript" src="/bbb-tool/lib/jquery.browser.min.js$!{cdnQuery}"></script>
     <!--script type="text/javascript" src="/bbb-tool/lib/jquery.timePicker.js"></script-->
-    <script type="text/javascript" src="/bbb-tool/lib/jquery.tipTip.minified.js"></script>
-    <script type="text/javascript" src="/bbb-tool/js/jquery.dataTables.min.js"></script>
-    <script type="text/javascript" src="/bbb-tool/js/bbb_utils.js"></script>
-    <script type="text/javascript" src="/bbb-tool/js/bbb_perms.js"></script>
+    <script type="text/javascript" src="/bbb-tool/lib/jquery.tipTip.minified.js$!{cdnQuery}"></script>
+    <script type="text/javascript" src="/bbb-tool/js/jquery.dataTables.min.js$!{cdnQuery}"></script>
+    <script type="text/javascript" src="/bbb-tool/js/bbb_utils.js$!{cdnQuery}"></script>
+    <script type="text/javascript" src="/bbb-tool/js/bbb_perms.js$!{cdnQuery}"></script>
     <script src="/library/js/lang-datepicker/lang-datepicker.js"></script>
 </head>
 <body>
@@ -706,7 +706,7 @@
 -->
 </div>
 
-<script type="text/javascript" src="/bbb-tool/js/bbb.js"></script>
+<script type="text/javascript" src="/bbb-tool/js/bbb.js$!{cdnQuery}"></script>
 <script type="text/javascript">
     // DOM hazır olduğunda çalış
     jQuery(document).ready(function($) {
